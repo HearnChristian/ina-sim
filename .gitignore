@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+.venv/
+venv/
+.env
+
+# Tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local run artifacts
+data/results/*
+!data/results/.gitkeep
+experiments/*
+!experiments/.gitkeep
+*.sqlite
+*.db
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Trajectories / heavy science dumps (never commit)
+*.xtc
+*.trr
+*.dcd
+*.nc
+*.h5
+*.hdf5
