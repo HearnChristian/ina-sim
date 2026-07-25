@@ -19,6 +19,11 @@ candidates:
     tags: [baseline, weather-mod, high-confidence, starter-set]
     source: literature+activity_table
 
+  # Soluble salts. These three are given identical ice-track treatment on
+  # purpose: none of them has a measured ice nucleation active site density, so
+  # any difference between their ice scores would be invented. They depress the
+  # freezing point colligatively and lower water activity, which suppresses
+  # freezing (Koop et al. 2000) - see physics/solutes.py.
   - id: nacl
     name: Sodium Chloride (sea salt proxy)
     formula: NaCl
@@ -26,31 +31,36 @@ candidates:
     base_efficiency: 0.12
     optimal_temp_c: -12.0
     density_g_cm3: 2.16
-    notes: "CCN/hygroscopic contrast on ice track (weak ice activity). Use warm_cloud track to rank as droplet seed."
-    tags: [hygroscopic, contrast, sea-salt, starter-set]
-    source: literature+activity_table
+    notes: "Soluble salt: CCN pathway, no measured ns(T). Use warm_cloud track to rank as droplet seed."
+    tags: [hygroscopic, solute, contrast, sea-salt, starter-set]
+    source: heuristic-no-ns-data
 
   - id: cacl2
     name: Calcium Chloride
     formula: CaCl2
     agent_class: hygroscopic
-    base_efficiency: 0.18
+    base_efficiency: 0.12
     optimal_temp_c: -10.0
     density_g_cm3: 2.15
-    notes: "Hygroscopic seeder; CCN pathway. Peak strength relative to AgI on ice track is low."
-    tags: [hygroscopic]
-    source: supercool-water-calculator
+    notes: "Soluble salt: CCN pathway, no measured ns(T). Ice-track score is heuristic only."
+    tags: [hygroscopic, solute]
+    source: heuristic-no-ns-data
 
   - id: ki
     name: Potassium Iodide
     formula: KI
-    agent_class: ice_nucleant
-    base_efficiency: 0.55
-    optimal_temp_c: -8.0
+    agent_class: hygroscopic
+    base_efficiency: 0.12
+    optimal_temp_c: -10.0
     density_g_cm3: 3.12
-    notes: "Iodide ice nucleant; medium confidence vs AgI."
-    tags: [iodide]
-    source: supercool-water-calculator
+    notes: >-
+      Soluble salt, NOT an ice nucleant. Reclassified from ice_nucleant in
+      v0.3.0: KI dissolves, and sharing an iodide ion with AgI confers no ice
+      nucleation ability. The earlier ice_nucleant class and 0.55 efficiency
+      came from a supercooled-water calculator where KI was a freezing-point
+      depressant, i.e. the opposite effect.
+    tags: [hygroscopic, solute, iodide]
+    source: heuristic-no-ns-data
 
   - id: k_feldspar
     name: Potassium Feldspar

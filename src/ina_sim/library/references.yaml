@@ -1,0 +1,245 @@
+# Bibliography for every empirical number in INA-sim.
+#
+# Rule enforced by tests/test_references.py:
+#   every parameterization, validation anchor and derived dataset MUST name a
+#   key in this file. A number with no reference key does not ship.
+#
+# `access` records how the value entered this repo:
+#   verbatim  — equation/table transcribed from the open-access source text
+#   derived   — computed here from tabulated measurements in the source
+#               (the derivation script is named in `derivation`)
+#   textbook  — standard constant/relation, not a specific measurement
+
+version: 1
+
+references:
+  harrison2019:
+    short: "Harrison et al. (2019)"
+    authors: "Harrison, A. D., Lever, K., Sanchez-Marroquin, A., Holden, M. A., Whale, T. F., Tarn, M. D., McQuaid, J. B., Murray, B. J."
+    year: 2019
+    title: "The ice-nucleating ability of quartz immersed in water and its atmospheric importance compared to K-feldspar"
+    journal: "Atmospheric Chemistry and Physics"
+    volume: "19"
+    pages: "11343-11361"
+    doi: "10.5194/acp-19-11343-2019"
+    url: "https://acp.copernicus.org/articles/19/11343/2019/"
+    open_access: true
+    access: verbatim
+    note: >-
+      Source of the K-feldspar, quartz, plagioclase feldspar and albite ns(T)
+      polynomials. All four fits are on BET-derived surface area. The paper
+      states the sigma of log10(ns) for each fit; those are carried through as
+      the uncertainty of every derived quantity.
+
+  niemand2012:
+    short: "Niemand et al. (2012)"
+    authors: "Niemand, M., Mohler, O., Vogel, B., Vogel, H., Hoose, C., Connolly, P., Klein, H., Bingemer, H., DeMott, P., Skrotzki, J., Leisner, T."
+    year: 2012
+    title: "A particle-surface-area-based parameterization of immersion freezing on desert dust particles"
+    journal: "Journal of the Atmospheric Sciences"
+    volume: "69"
+    pages: "3077-3092"
+    doi: "10.1175/JAS-D-11-0249.1"
+    open_access: false
+    access: verbatim
+    note: >-
+      AIDA chamber desert dust immersion INAS fit ns(T) = exp(8.934 - 0.517 T),
+      T in degrees Celsius, ns in m^-2, valid -36 to -12 C. The paper itself is
+      paywalled; coefficients were taken from the verbatim restatement in
+      Kanji et al. (2019), ACP 19, 5091-5110 (doi:10.5194/acp-19-5091-2019),
+      p. 5103: "a = 8.934, b = -0.517, and T is measured in degrees Celsius".
+      Surface area basis is the aerosol geometric surface area from the AIDA
+      size distributions, NOT BET.
+
+  murray2011:
+    short: "Murray et al. (2011)"
+    authors: "Murray, B. J., Broadley, S. L., Wilson, T. W., Atkinson, J. D., Wills, R. H."
+    year: 2011
+    title: "Heterogeneous freezing of water droplets containing kaolinite particles"
+    journal: "Atmospheric Chemistry and Physics"
+    volume: "11"
+    pages: "4191-4207"
+    doi: "10.5194/acp-11-4191-2011"
+    url: "https://acp.copernicus.org/articles/11/4191/2011/"
+    open_access: true
+    access: verbatim
+    note: >-
+      Source of the time-dependent (stochastic) description used here:
+      Eq. (24) heterogeneous nucleation rate coefficient for kaolinite KGa-1b,
+      Eq. (23) homogeneous nucleation rate coefficient for pure water (itself
+      taken from Murray et al. 2010), and Eqs. (16)-(19), the multi-component
+      survival-probability model that turns rate coefficients into a frozen
+      fraction.
+
+  murray2010:
+    short: "Murray et al. (2010)"
+    authors: "Murray, B. J., Broadley, S. L., Wilson, T. W., Bull, S. J., Wills, R. H., Christenson, H. K., Murray, E. J."
+    year: 2010
+    title: "Kinetics of the homogeneous freezing of water"
+    journal: "Physical Chemistry Chemical Physics"
+    volume: "12"
+    pages: "10380-10387"
+    doi: "10.1039/c003297b"
+    open_access: false
+    access: verbatim
+    note: >-
+      Origin of the homogeneous nucleation rate coefficient J_hom(T) that
+      Murray et al. (2011) restate as their Eq. (23); the coefficients used
+      here are transcribed from that open-access restatement.
+
+  marcolli2016:
+    short: "Marcolli et al. (2016)"
+    authors: "Marcolli, C., Nagare, B., Welti, A., Lohmann, U."
+    year: 2016
+    title: "Ice nucleation efficiency of AgI: review and new insights"
+    journal: "Atmospheric Chemistry and Physics"
+    volume: "16"
+    pages: "8915-8937"
+    doi: "10.5194/acp-16-8915-2016"
+    url: "https://acp.copernicus.org/articles/16/8915/2016/"
+    open_access: true
+    access: derived
+    derivation: "tools/fit_agi_ns.py"
+    note: >-
+      Table 1 compiles 60 years of AgI immersion-freezing experiments as
+      (particle diameter, particles per droplet, activated fraction, freezing
+      temperature). INA-sim inverts those rows to ns(T) with the singular
+      approximation of Vali (1971) and fits log10(ns) linearly in T. Raw rows
+      live in src/ina_sim/validation/datasets/agi_marcolli2016_table1.yaml;
+      the fit is
+      regenerated by tools/fit_agi_ns.py. AgI has no published INAS
+      parameterization comparable to the mineral fits, so this is the honest
+      substitute and is labelled derived, not published.
+
+  vali1971:
+    short: "Vali (1971)"
+    authors: "Vali, G."
+    year: 1971
+    title: "Quantitative evaluation of experimental results on the heterogeneous freezing nucleation of supercooled liquids"
+    journal: "Journal of the Atmospheric Sciences"
+    volume: "28"
+    pages: "402-409"
+    doi: "10.1175/1520-0469(1971)028<0402:QEOERA>2.0.CO;2"
+    open_access: false
+    access: textbook
+    note: >-
+      The cumulative nucleus spectrum and the singular inversion
+      ns = -ln(1 - f_ice) / A used throughout this repo.
+
+  vali2015:
+    short: "Vali et al. (2015)"
+    authors: "Vali, G., DeMott, P. J., Mohler, O., Whale, T. F."
+    year: 2015
+    title: "Technical Note: A proposal for ice nucleation terminology"
+    journal: "Atmospheric Chemistry and Physics"
+    volume: "15"
+    pages: "10263-10270"
+    doi: "10.5194/acp-15-10263-2015"
+    url: "https://acp.copernicus.org/articles/15/10263/2015/"
+    open_access: true
+    access: verbatim
+    note: >-
+      Terminology standard followed by this repo: "ice nucleating particle
+      (INP)" rather than "ice nucleus", and ns(T) with dimension L^-2. Quoted
+      at p. 10267: the quantity "is designated as ns(T), or ns(S), with
+      dimension of L^-2 (CGS units of cm^-2)".
+
+  hoose2012:
+    short: "Hoose and Mohler (2012)"
+    authors: "Hoose, C., Mohler, O."
+    year: 2012
+    title: "Heterogeneous ice nucleation on atmospheric aerosols: a review of results from laboratory experiments"
+    journal: "Atmospheric Chemistry and Physics"
+    volume: "12"
+    pages: "9817-9854"
+    doi: "10.5194/acp-12-9817-2012"
+    url: "https://acp.copernicus.org/articles/12/9817/2012/"
+    open_access: true
+    access: verbatim
+    note: "Review used for the INAS framing and for cross-checking orders of magnitude."
+
+  atkinson2013:
+    short: "Atkinson et al. (2013)"
+    authors: "Atkinson, J. D., Murray, B. J., Woodhouse, M. T., Whale, T. F., Baustian, K. J., Carslaw, K. S., Dobbie, S., O'Sullivan, D., Malkin, T. L."
+    year: 2013
+    title: "The importance of feldspar for ice nucleation by mineral dust in mixed-phase clouds"
+    journal: "Nature"
+    volume: "498"
+    pages: "355-358"
+    doi: "10.1038/nature12278"
+    open_access: false
+    access: verbatim
+    note: >-
+      The result that K-feldspar dominates mineral dust ice nucleation and is
+      active several degrees warmer than clays. Used here only as the source of
+      a directional ordering check, not of any coefficient.
+
+  hiranuma2015:
+    short: "Hiranuma et al. (2015)"
+    authors: "Hiranuma, N., et al."
+    year: 2015
+    title: "A comprehensive laboratory study on the immersion freezing behavior of illite NX particles: a comparison of 17 ice nucleation measurement techniques"
+    journal: "Atmospheric Chemistry and Physics"
+    volume: "15"
+    pages: "4823-4849"
+    doi: "10.5194/acp-15-4823-2015"
+    url: "https://acp.copernicus.org/articles/15/4823/2015/"
+    open_access: true
+    access: verbatim
+    note: >-
+      Basis for the size of the BET-vs-geometric surface area discrepancy for
+      clay samples, and for the roughly one order of magnitude spread between
+      techniques measuring the same material.
+
+  koop2000:
+    short: "Koop et al. (2000)"
+    authors: "Koop, T., Luo, B., Tsias, A., Peter, T."
+    year: 2000
+    title: "Water activity as the determinant for homogeneous ice nucleation in aqueous solutions"
+    journal: "Nature"
+    volume: "406"
+    pages: "611-614"
+    doi: "10.1038/35020537"
+    open_access: false
+    access: verbatim
+    note: >-
+      Cited for the direction of the solute effect: dissolved salts lower water
+      activity and therefore depress freezing rather than promote it. INA-sim
+      does not implement the water-activity shift; it states the direction and
+      declines to score solutes as ice nucleants.
+
+  crc_handbook:
+    short: "CRC Handbook (2023)"
+    authors: "Rumble, J. R. (ed.)"
+    year: 2023
+    title: "CRC Handbook of Chemistry and Physics, 104th edition"
+    publisher: "CRC Press"
+    open_access: false
+    access: textbook
+    note: >-
+      Cryoscopic constant of water Kf = 1.86 K kg mol^-1 and the molar masses
+      used by the colligative freezing-point-depression model.
+
+  pruppacher1997:
+    short: "Pruppacher and Klett (1997)"
+    authors: "Pruppacher, H. R., Klett, J. D."
+    year: 1997
+    title: "Microphysics of Clouds and Precipitation, 2nd edition"
+    publisher: "Kluwer Academic Publishers"
+    doi: "10.1007/978-0-306-48100-0"
+    open_access: false
+    access: textbook
+    note: "Standard reference for cloud microphysics and the homogeneous freezing regime."
+
+  alduchov1996:
+    short: "Alduchov and Eskridge (1996)"
+    authors: "Alduchov, O. A., Eskridge, R. E."
+    year: 1996
+    title: "Improved Magnus form approximation of saturation vapor pressure"
+    journal: "Journal of Applied Meteorology"
+    volume: "35"
+    pages: "601-609"
+    doi: "10.1175/1520-0450(1996)035<0601:IMFAOS>2.0.CO;2"
+    open_access: false
+    access: verbatim
+    note: "Saturation vapour pressure formulation used by physics/atmosphere.py."

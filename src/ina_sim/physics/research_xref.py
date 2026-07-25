@@ -24,7 +24,7 @@ Primary literature flavors (teaching anchors, not full citations DB):
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Iterable, Sequence
+from typing import Any, Sequence
 
 from ina_sim.physics.atmosphere import (
     atmosphere_state,

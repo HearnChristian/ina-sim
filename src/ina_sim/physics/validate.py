@@ -5,7 +5,6 @@ from __future__ import annotations
 import math
 from typing import Any
 
-
 # Operating envelope for this learning lab (not global climate extremes)
 T_MIN_C = -80.0
 T_MAX_C = 40.0

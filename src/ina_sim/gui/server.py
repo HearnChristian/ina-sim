@@ -32,15 +32,18 @@ from ina_sim.library.registry import (
 )
 from ina_sim.models.conditions import Conditions, conditions_clamp_report
 from ina_sim.physics.atmosphere import atmosphere_state
+from ina_sim.physics.claims import extract_claims
+from ina_sim.physics.evidence import evidence_summary
+from ina_sim.physics.ns import registry_summary
+from ina_sim.physics.research_xref import cross_reference_screen
 from ina_sim.physics.validate import (
     clamp,
     is_finite_number,
 )
-from ina_sim.physics.claims import extract_claims
-from ina_sim.physics.research_xref import cross_reference_screen
 from ina_sim.provenance import DEFAULT_ASSUMPTIONS, build_provenance
 from ina_sim.schema import assert_screen_payload
 from ina_sim.screen.rank import rank_candidates, temperature_sweep
+from ina_sim.validation.runner import run_validation
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 _PERSIST_LOADED = False
@@ -200,6 +203,24 @@ def run_screen_payload(
         literature_ok=bool(lit.get("summary", {}).get("ok")),
         literature_fails=lit_fails,
     )
+    # Empirical layer: which of these rankings is backed by a measurement, and
+    # does this build still reproduce the literature it cites? Additive block -
+    # existing consumers of the payload are unaffected.
+    evidence_blocks = [
+        r.details.get("evidence") or {"evidence": "none"} for r in ranked
+    ]
+    empirical = {
+        "summary": evidence_summary(evidence_blocks),
+        "registry": {
+            k: v for k, v in registry_summary().items() if k != "parameterizations"
+        },
+    }
+    try:
+        validation = run_validation()
+        empirical["validation"] = validation.as_dict()["summary"]
+    except Exception as exc:  # never let a self-check break a screen
+        empirical["validation"] = {"ok": None, "error": str(exc)}
+
     starter_flag = bool(starter_set and not ids)
     prov = build_provenance(
         conditions,
@@ -250,6 +271,7 @@ def run_screen_payload(
         "warnings": warns,
         "literature_xref": lit,
         "empirical_claims": claims,
+        "empirical_layer": empirical,
     }
     if validate_schema:
         assert_screen_payload(payload)

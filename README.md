@@ -4,38 +4,71 @@
 
 > **60% learning lab · 40% portfolio.** Not a product to sell. Not operational weather control. Not absolute nucleation rates.
 
-**Living handbook:** [`docs/PROJECT.md`](docs/PROJECT.md)  
-**Professional checklist:** [`docs/PROFESSIONAL-ROADMAP.md`](docs/PROFESSIONAL-ROADMAP.md)  
-**One-pager:** [`docs/ONE-PAGER.md`](docs/ONE-PAGER.md) · **Demo:** [`docs/DEMO-SCRIPT.md`](docs/DEMO-SCRIPT.md)  
-**Literature:** [`docs/LITERATURE-CHECKS.md`](docs/LITERATURE-CHECKS.md)  
-**Skill:** `.grok/skills/ina-sim/`
+**Methods (every equation, unit and source):** [`docs/METHODS.md`](docs/METHODS.md)
+**Validation (what this build reproduces):** [`docs/VALIDATION.md`](docs/VALIDATION.md)
+**Bibliography:** [`docs/REFERENCES.md`](docs/REFERENCES.md)
+**Living handbook:** [`docs/PROJECT.md`](docs/PROJECT.md) · **Demo:** [`docs/DEMO-SCRIPT.md`](docs/DEMO-SCRIPT.md)
+
+## Two layers, kept apart on purpose
+
+| | heuristic layer | empirical layer |
+|---|---|---|
+| answers | "which would I try first?" | "what has anyone measured?" |
+| output | relative score 0–1 vs AgI | ns(T) in m⁻², J(T), frozen fraction, T50 |
+| basis | shaped activity curves | published fits, with DOI, units, validity range and σ |
+| honest use | ordering a shortlist | quoting a number |
+
+The relative score is a ranking convention. The empirical layer is evidence.
+Every screen labels which candidates have either.
+
+```bash
+ina-sim ns --list                  # what is actually parameterized, and by whom
+ina-sim ns --temp -20              # ns(T) / J(T) from the literature
+ina-sim freeze --id k_feldspar_harrison2019 --diameter 1 --curve
+ina-sim validate                   # does this build still reproduce its sources?
+ina-sim refs                       # the bibliography behind every number
+```
+
+## Rules the code enforces
+
+- **No silent extrapolation.** Outside the range a source fitted, a parameterization returns nothing. `--extrapolate` overrides and stamps the result `EXTRAPOLATED`.
+- **No mixing surface-area bases.** BET and geometric ns values differ by over an order of magnitude for clays, so ranking across bases raises `AreaBasisError`.
+- **No unstated uncertainty.** A missing σ is replaced by a documented, attributed default and flagged `sigma_assumed`.
+- **No unreferenced numbers.** Every coefficient names a key in `library/references.yaml`, and tests fail the build if one does not resolve.
+- **No soluble salt scored as an ice nucleant.** NaCl, CaCl₂ and KI depress the freezing point; they get a colligative treatment and an explicit "no ns(T) exists".
 
 ## What this is not
 
-- Not calibrated \(n_s(T)\) or field INP measurements  
-- Not cloud-resolving / radar verification  
-- Not operational seeding guidance or a commercial product  
-- Not a substitute for wet-lab validation before any payload spend  
+- Not calibrated to any field campaign or seeding operation
+- Not cloud-resolving, not radar verification
+- Not operational seeding guidance, dosages or precipitation forecasts
+- Not a substitute for a droplet-freezing assay — it predicts what one would measure
+- Not complete: 8 parameterizations covering 4 of the library's candidates, and the gaps are visible on purpose
 
-## Status (v0.2)
+## Status (v0.3)
 
 | Layer | State |
 |-------|--------|
+| **Empirical ns(T) / J(T) registry** | 7 published fits + 1 derived in-repo, with units, area basis, validity, σ, DOI |
+| **Droplet-freezing observables** | frozen fraction, Vali inversion, T50, INP concentration, cooling-ramp integration |
+| **Singular + stochastic descriptions** | Vali (1971) and Murray et al. (2011), reported side by side |
+| **Validation suite** | 5 anchors against published claims, run in CI (`ina-sim validate`) |
+| **Solute physics** | colligative ΔTf, explicit "not an ice nucleant" |
 | **L0/L1 + activity tables** | Working (CLI + GUI) |
 | **Atmosphere** | Water + ice Magnus, S_w / S_i, RH_ice |
-| **CNT (educational)** | Secondary score only |
 | **Tracks** | `ice` (glaciogenic) vs `warm_cloud` (CCN) |
 | **Literature xref** | Directional public-research checks on every screen |
-| **Uncertainty bands** | Confidence-tier relINA low–high |
-| **Provenance** | version, param_hash, assumptions, clamp report |
+| **Provenance** | version, param_hash, assumptions, clamp report, evidence summary |
 | **Molecular uploads** | SMILES/XYZ/MOL/JSON → exploratory builder feed |
 | **GUI** | Win95 chrome, assumptions panel, mechanism banner |
-| **CI** | GitHub Actions + golden fixtures |
+| **CI** | pytest + ruff + mypy, plus a validation job that re-derives the anchors |
 | **L2 MD / molecular builder** | Next |
 
 ```
 Candidate library → track + conditions → activity tables / heuristics
-  → rank + bands + sources → literature_xref + provenance export
+  → rank + bands + sources
+  → empirical layer: ns(T) with citation, or an explicit "nobody measured this"
+  → literature_xref + validation + provenance export
 ```
 
 ## Quick start
@@ -49,7 +82,8 @@ pip install -e ".[dev]"
 ina-sim list
 ina-sim screen --temp -10 --tag starter-set
 ina-sim screen --temp 0 --track warm_cloud
-ina-sim upload --smiles CCO --name Ethanol
+ina-sim ns --temp -20
+ina-sim validate
 ina-sim gui                    # http://127.0.0.1:8765/
 pytest -q
 ```
@@ -58,14 +92,22 @@ pytest -q
 
 ```
 src/ina_sim/
-  physics/     atmosphere, activity tables, efficiency, CNT, research_xref
-  library/     candidates.yaml, activity_curves.yaml, molecular uploads
-  screen/      rank + uncertainty
-  provenance.py  param_hash + assumptions
-  schema.py      payload validation
-  gui/         offline stdlib server + Win95 HTML
-docs/          PROJECT.md (keep updated)
-tests/         literature, golden, properties, stress
+  units.py       SI conversions; the one place cm^-2 becomes m^-2
+  references.py  bibliography loader (library/references.yaml)
+  physics/       atmosphere, activity tables, efficiency, CNT, research_xref
+                 ns.py        published parameterization registry + guards
+                 freezing.py  frozen fraction, Vali inversion, T50, INP conc.
+                 solutes.py   colligative freezing point depression
+                 evidence.py  measured / solute / none, per candidate
+  library/       candidates.yaml, activity_curves.yaml,
+                 parameterizations.yaml, references.yaml
+  validation/    anchors.yaml + runner (ina-sim validate)
+                 datasets/ digitized literature measurements
+  screen/        rank + uncertainty
+  gui/           offline stdlib server + Win95 HTML
+tools/           fit_agi_ns.py (derives the AgI fit), gen_docs.py
+docs/            METHODS.md, VALIDATION.md, REFERENCES.md, PROJECT.md
+tests/           248 tests: units, registry, freezing physics, validation, references
 ```
 
 ## License

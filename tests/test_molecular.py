@@ -6,16 +6,15 @@ import json
 
 import pytest
 
+from ina_sim.library.loader import load_candidates
 from ina_sim.library.molecular import (
     parse_smiles,
     parse_upload,
     parse_xyz,
-    record_to_candidate,
 )
 from ina_sim.library.registry import clear_session, list_session, register, unregister
-from ina_sim.screen.rank import rank_candidates
 from ina_sim.models.conditions import Conditions
-from ina_sim.library.loader import load_candidates
+from ina_sim.screen.rank import rank_candidates
 
 
 @pytest.fixture(autouse=True)

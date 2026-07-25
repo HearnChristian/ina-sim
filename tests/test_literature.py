@@ -17,10 +17,6 @@ References used as anchors:
 
 from __future__ import annotations
 
-import math
-
-import pytest
-
 from ina_sim.library.loader import filter_candidates, get_candidate, load_candidates
 from ina_sim.models.conditions import Conditions
 from ina_sim.physics.atmosphere import (
@@ -31,7 +27,6 @@ from ina_sim.physics.atmosphere import (
 )
 from ina_sim.physics.cnt import cnt_estimate, heterogeneous_factor
 from ina_sim.screen.rank import rank_candidates, screen_one
-
 
 # --- Atmosphere reference points ---
 

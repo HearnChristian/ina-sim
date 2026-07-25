@@ -12,7 +12,7 @@ from ina_sim.models.conditions import Conditions
 from ina_sim.physics.atmosphere import atmosphere_state, saturating_vapor_pressure_hpa
 from ina_sim.physics.cnt import cnt_activity_score, cnt_estimate
 from ina_sim.physics.efficiency import agent_efficiency
-from ina_sim.screen.rank import rank_candidates, screen_one, temperature_sweep
+from ina_sim.screen.rank import rank_candidates, temperature_sweep
 
 
 def test_atmosphere_grid_all_finite():

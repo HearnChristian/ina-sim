@@ -1,0 +1,92 @@
+# Validation anchors: published statements this build must reproduce.
+#
+# An anchor is only worth having if it is INDEPENDENT of the coefficients being
+# tested. Checking a polynomial against itself proves nothing, so every anchor
+# below is either
+#   * a numerical claim made in prose by the source, separate from the fit;
+#   * a qualitative ordering the source asserts, made quantitative here;
+#   * a textbook physical regime the model must land in; or
+#   * a calibration check: do the published measurements actually fall inside
+#     the uncertainty band this tool advertises?
+#
+# The last kind is the one that keeps the tool honest. A band that does not
+# contain the data is a false claim about precision.
+#
+# tolerance units follow the anchor kind: log10 decades, or degrees Celsius.
+
+version: 1
+
+anchors:
+  - id: kaolinite_rate_at_239k
+    kind: value_log10
+    parameterization: kaolinite_murray2011
+    temperature_c: -34.15          # 239.0 K
+    expected_log10: 5.0
+    tolerance_log10: 0.5
+    reference: murray2011
+    claim: >-
+      Murray et al. (2011), Sect. 7, comparing their kaolinite rate with
+      Niedermeier et al. (2010): "They find a J value of 10^7 cm-2 s-1 at
+      239 K, whereas we report a value of ~10^5 cm-2 s-1 at the same
+      temperature." The prose value is independent of Eq. (24)'s coefficients,
+      so reproducing it tests the transcription.
+
+  - id: mineral_activity_ordering
+    kind: ordering
+    parameterizations:
+      - k_feldspar_harrison2019
+      - albite_harrison2019
+      - quartz_harrison2019
+      - plagioclase_harrison2019
+    temperatures_c: [-15.0, -20.0, -25.0, -30.0, -35.0]
+    reference: harrison2019
+    claim: >-
+      Harrison et al. (2019), Sect. 5.1: "there is a general trend in that
+      plagioclase feldspars are the least active of the four mineral groups
+      and K-feldspar is the most active. Both albite and quartz show similar,
+      intermediate, activities." All four fits share the BET area basis, so
+      they are directly comparable.
+    note: >-
+      Albite and quartz are listed in the order the paper's figure shows them;
+      the paper calls their activities "similar", and the separation this fit
+      produces (0.8-1.4 decades) is within the quoted sigma of 0.7-0.8, so the
+      ordering between those two is checked but is not evidence of a real gap.
+
+  - id: homogeneous_freezing_regime
+    kind: stochastic_t50_window
+    parameterization: water_homogeneous_murray2010
+    droplet_diameter_um: 10.0
+    cooling_rate_k_per_min: 1.0
+    expected_min_c: -38.0
+    expected_max_c: -35.0
+    reference: pruppacher1997
+    claim: >-
+      Micrometre-sized pure water droplets freeze homogeneously in the
+      -35 to -38 C range. This is an end-to-end check: it exercises the rate
+      coefficient, the unit conversions and the cooling-ramp integration
+      together, and it fails loudly if any of them is wrong by a factor of ten.
+
+  - id: agi_band_covers_measurements
+    kind: band_coverage
+    parameterization: agi_marcolli2016_derived
+    dataset: agi_marcolli2016_table1.yaml
+    sigma_multiplier: 1.0
+    min_coverage: 0.60
+    reference: marcolli2016
+    claim: >-
+      The AgI fit advertises a 1-sigma band of 1.82 decades. For that claim to
+      be honest, roughly the Gaussian fraction of the underlying measurements
+      must fall inside it. Requiring at least 60 percent coverage at 1 sigma
+      detects both an understated band and a fit that has drifted off the data.
+
+  - id: agi_band_covers_measurements_2sigma
+    kind: band_coverage
+    parameterization: agi_marcolli2016_derived
+    dataset: agi_marcolli2016_table1.yaml
+    sigma_multiplier: 2.0
+    min_coverage: 0.94
+    reference: marcolli2016
+    claim: >-
+      At 2 sigma essentially every measurement must be inside the band. If it
+      is not, the quoted uncertainty is too small and every downstream number
+      is overconfident.

@@ -48,7 +48,11 @@ class CNTResult:
     def as_dict(self) -> dict:
         return {
             "temperature_c": self.temperature_c,
-            "supersaturation": round(self.supersaturation, 4) if is_finite_number(self.supersaturation) else None,
+            "supersaturation": (
+                round(self.supersaturation, 4)
+                if is_finite_number(self.supersaturation)
+                else None
+            ),
             "delta_g_star_kt": (
                 None if self.delta_g_star_kt is None else round(self.delta_g_star_kt, 2)
             ),

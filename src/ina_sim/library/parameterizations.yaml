@@ -1,0 +1,213 @@
+# Published (and one explicitly derived) ice nucleation parameterizations.
+#
+# This file is the empirical core of INA-sim. Everything in it is a number that
+# exists in the literature, transcribed with its units, its surface-area basis,
+# its stated range of validity and its stated uncertainty. Nothing is tuned to
+# make the demo look good.
+#
+# Fields
+#   id            stable key used in provenance output
+#   applies_to    library candidate ids this parameterization describes
+#                 (empty = material has no library candidate; still queryable)
+#   material      what was actually measured, as described by the source
+#   status        published  - equation transcribed from the source
+#                 derived    - computed here from tabulated source measurements
+#   kind          singular   - ns(T), time-independent active site density
+#                 stochastic - J(T), nucleation rate coefficient
+#   mode          immersion | deposition | contact
+#   form          how to evaluate `coefficients` (see physics/ns.py)
+#     log10_poly_c    log10(ns) = sum_i c[i] * T_C^i
+#     log10_linear_c  log10(ns) = c[0] + c[1] * T_C
+#     ln_linear_c     ln(ns)    = c[0] + c[1] * T_C
+#     ln_J_linear_k   ln(J)     = c[0] + c[1] * T_K
+#   ns_units      m^-2 | cm^-2 for singular; cm^-2 s^-1 | cm^-3 s^-1 for J
+#   area_basis    BET | geometric | volume (volume = J is per droplet volume)
+#                 BET and geometric areas are NOT interchangeable: for clays
+#                 they differ by more than an order of magnitude
+#                 (Hiranuma et al. 2015), so ns values on different bases must
+#                 never be compared or ranked against each other.
+#   t_min_c/t_max_c   range over which the source fitted data. Outside it the
+#                 evaluator refuses to return a value unless extrapolation is
+#                 explicitly requested, and then flags it.
+#   sigma_log10   stated 1-sigma uncertainty of log10(ns), in decades.
+#                 null means the source does not state one; the evaluator then
+#                 substitutes a documented default and marks sigma_assumed.
+#   reference     key in references.yaml
+
+version: 1
+
+# Used when a parameterization has no stated uncertainty. One order of
+# magnitude is the spread Hiranuma et al. (2015) found between 17 techniques
+# measuring the same illite NX sample, so it is a conservative stand-in.
+default_sigma_log10: 1.0
+default_sigma_reference: hiranuma2015
+
+parameterizations:
+  - id: k_feldspar_harrison2019
+    applies_to: [k_feldspar]
+    material: "K-feldspar (microcline; samples with exsolution microtexture)"
+    status: published
+    kind: singular
+    mode: immersion
+    form: log10_poly_c
+    coefficients: [-3.25, -0.793, -0.0691, -0.00417, -0.000105, -9.08e-7]
+    ns_units: cm^-2
+    area_basis: BET
+    t_min_c: -37.5
+    t_max_c: -3.5
+    sigma_log10: 0.8
+    reference: harrison2019
+    quote: >-
+      log(ns(T)) = -3.25 + (-0.793T) + (-6.91x10^-2 T^2) + (-4.17x10^-3 T^3)
+      + (-1.05x10^-4 T^4) + (-9.08x10^-7 T^5), (-3.5 to -37.5 C; 0.8)
+
+  - id: quartz_harrison2019
+    applies_to: []
+    material: "quartz, freshly milled (authors call this an upper limit)"
+    status: published
+    kind: singular
+    mode: immersion
+    form: log10_poly_c
+    coefficients: [-1.709, 0.07, 0.0175, 0.000266]
+    ns_units: cm^-2
+    area_basis: BET
+    t_min_c: -37.5
+    t_max_c: -10.5
+    sigma_log10: 0.8
+    reference: harrison2019
+    quote: >-
+      Quartz: log(ns(T)) = -1.709 + (2.66x10^-4 T^3) + (1.75x10^-2 T^2)
+      + (7x10^-2 T), (-10.5 to -37.5 C; 0.8)
+    caveat: >-
+      Freshly ground quartz; the authors state these samples "represent an
+      upper limit to the ice-nucleating ability" of quartz.
+
+  - id: plagioclase_harrison2019
+    applies_to: []
+    material: "plagioclase feldspar"
+    status: published
+    kind: singular
+    mode: immersion
+    form: log10_poly_c
+    coefficients: [-12.0, -1.71, -0.106, -0.00317, -3.24e-5]
+    ns_units: cm^-2
+    area_basis: BET
+    t_min_c: -38.5
+    t_max_c: -12.5
+    sigma_log10: 0.5
+    reference: harrison2019
+    quote: >-
+      plagioclase feldspar: log(ns(T)) = (-3.24x10^-5 T^4) + (-3.17x10^-3 T^3)
+      + (-0.106 T^2) + (-1.71T) -12, (-12.5 to -38.5 C; 0.5)
+
+  - id: albite_harrison2019
+    applies_to: []
+    material: "albite (Na-feldspar)"
+    status: published
+    kind: singular
+    mode: immersion
+    form: log10_poly_c
+    coefficients: [-2.29, -0.0179, 0.0189, 0.000341]
+    ns_units: cm^-2
+    area_basis: BET
+    t_min_c: -35.5
+    t_max_c: -6.5
+    sigma_log10: 0.7
+    reference: harrison2019
+    quote: >-
+      albite: log(ns(T)) = (3.41x10^-4 T^3) + (1.89x10^-2 T^2)
+      + (-1.79x10^-2 T) -2.29, (-6.5 to -35.5 C; 0.7)
+
+  - id: desert_dust_niemand2012
+    applies_to: []
+    material: "desert dust (Sahara, Asia, Canary Islands, Israel; AIDA chamber)"
+    status: published
+    kind: singular
+    mode: immersion
+    form: ln_linear_c
+    coefficients: [8.934, -0.517]
+    ns_units: m^-2
+    area_basis: geometric
+    t_min_c: -36.0
+    t_max_c: -12.0
+    sigma_log10: null
+    reference: niemand2012
+    quote: "ns(T) = exp(8.934 - 0.517 T), T in degrees Celsius, ns in m^-2"
+    caveat: >-
+      Geometric (aerosol size distribution) surface area, not BET. Kanji et al.
+      (2019) report their own dust fit differing from this one by factors of
+      2.5 to 4.5 across the range, which is the practical accuracy to expect.
+
+  - id: kaolinite_murray2011
+    applies_to: [kaolinite]
+    material: "kaolinite KGa-1b (Clay Minerals Society)"
+    status: published
+    kind: stochastic
+    mode: immersion
+    form: ln_J_linear_k
+    coefficients: [222.17, -0.8802]
+    ns_units: cm^-2 s^-1
+    area_basis: geometric
+    t_min_c: -37.05
+    t_max_c: -27.65
+    sigma_log10: null
+    reference: murray2011
+    quote: "Jk(T)[cm^-2 s^-1] = exp(-0.8802 T + 222.17)  (236.1-245.5 K)"
+    caveat: >-
+      Time dependent: this is a rate, so the frozen fraction depends on how long
+      droplets are held as well as on temperature. Validity range is stated in
+      kelvin in the source (236.1-245.5 K) and converted here. The authors warn
+      that "extrapolation of these rate coefficients to other temperatures
+      should be done with caution".
+
+  - id: water_homogeneous_murray2010
+    applies_to: [water_control]
+    material: "pure water droplets (homogeneous freezing)"
+    status: published
+    kind: stochastic
+    mode: homogeneous
+    form: ln_J_linear_k
+    coefficients: [706.5, -2.92]
+    ns_units: cm^-3 s^-1
+    area_basis: volume
+    t_min_c: -38.25
+    t_max_c: -36.45
+    sigma_log10: null
+    reference: murray2010
+    quote: "Jhom(T)[cm^-3 s^-1] = exp(-2.92 T + 706.5)  (234.9-236.7 K)"
+    caveat: >-
+      Volume-based rate coefficient (per cm^3 of liquid), so it does not scale
+      with particle surface area and must never be compared with an ns value.
+      Transcribed from Murray et al. (2011) Eq. (23), who take it from
+      Murray et al. (2010).
+
+  # Derived here, not published. Regenerate with: python tools/fit_agi_ns.py
+  - id: agi_marcolli2016_derived
+    applies_to: [agi]
+    material: "AgI, compilation of 6 immersion studies (1962-2016)"
+    status: derived
+    kind: singular
+    mode: immersion
+    form: log10_linear_c
+    coefficients: [8.7913, -0.2009]
+    ns_units: m^-2
+    area_basis: geometric
+    t_min_c: -22.15
+    t_max_c: -5.15
+    sigma_log10: 1.82
+    reference: marcolli2016
+    derivation: tools/fit_agi_ns.py
+    dataset: src/ina_sim/validation/datasets/agi_marcolli2016_table1.yaml
+    dataset_sha256: 6a850555e7d21a12
+    n_points: 19
+    r_squared: 0.258
+    quote: null
+    caveat: >-
+      NOT a published parameterization. Least-squares fit to 19 measurements
+      inverted with the singular approximation, R^2 = 0.26 and residual scatter
+      of 1.8 orders of magnitude. Aerosol-generated nanoparticles
+      (Marcolli et al.'s own IMCA-ZINC runs) sit up to 3.5 decades above
+      cold-stage crystal studies at the same temperature. The honest reading is
+      that AgI ice nucleation is not a function of surface area alone, which is
+      what the review itself concludes. Treat the central value as an
+      order-of-magnitude orientation and always show the band.

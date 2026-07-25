@@ -12,6 +12,7 @@ from ina_sim.physics.activity import uncertainty_fraction
 from ina_sim.physics.atmosphere import atmosphere_state, total_water_vapor_kg
 from ina_sim.physics.cnt import cnt_estimate
 from ina_sim.physics.efficiency import agent_efficiency, condensable_water_kg
+from ina_sim.physics.evidence import EVIDENCE_MEASURED, EVIDENCE_SOLUTE, evidence_for
 
 
 def screen_one(candidate: Candidate, conditions: Conditions) -> ScreenResult:
@@ -29,7 +30,8 @@ def screen_one(candidate: Candidate, conditions: Conditions) -> ScreenResult:
         rel = 0.0
 
     conf = candidate.default_confidence()
-    if candidate.agent_class.value == "organic" or "upload" in candidate.tags or "exploratory" in candidate.tags:
+    exploratory_tag = "upload" in candidate.tags or "exploratory" in candidate.tags
+    if candidate.agent_class.value == "organic" or exploratory_tag:
         conf = Confidence.EXPLORATORY
     if candidate.source == "upload":
         conf = Confidence.EXPLORATORY
@@ -59,7 +61,29 @@ def screen_one(candidate: Candidate, conditions: Conditions) -> ScreenResult:
         else None,
     )
 
+    evidence = evidence_for(
+        candidate,
+        conditions.temperature_c,
+        particle_diameter_um=conditions.particle_diameter_um,
+        mode=conditions.mode,
+    )
+
     warnings: list[str] = []
+    if evidence["evidence"] == EVIDENCE_SOLUTE:
+        warnings.append(
+            f"{candidate.id} is a soluble salt: it depresses the freezing point "
+            "and has no measured ice nucleation active site density"
+        )
+    elif evidence["evidence"] != EVIDENCE_MEASURED:
+        warnings.append(
+            f"{candidate.id} has no ice nucleation parameterization in this "
+            "build; its score is heuristic, not measured"
+        )
+    elif (evidence.get("ns") or {}).get("value") is None:
+        warnings.append(
+            f"{candidate.id}: measured, but {conditions.temperature_c:g} °C is "
+            "outside the fitted range of its parameterization"
+        )
     if candidate.agent_class.value == "organic":
         warnings.append("organic class is exploratory; not for payload claims")
     if candidate.agent_class.value == "hygroscopic":
@@ -67,7 +91,10 @@ def screen_one(candidate: Candidate, conditions: Conditions) -> ScreenResult:
             "hygroscopic mechanism ≠ ice nucleation; compare carefully to AgI"
         )
         if conditions.track == "ice":
-            warnings.append("ice track: hygroscopic agents demoted (use warm_cloud track for CCN ranking)")
+            warnings.append(
+                "ice track: hygroscopic agents demoted "
+                "(use warm_cloud track for CCN ranking)"
+            )
     if conditions.mode == "deposition" and not atm.ice_supersaturated:
         warnings.append("deposition mode: parcel not ice-supersaturated (S_i ≤ 1)")
     if conditions.mode == "immersion" and conditions.temperature_c >= 0:
@@ -112,6 +139,7 @@ def screen_one(candidate: Candidate, conditions: Conditions) -> ScreenResult:
             "rh_ice_pct": round(atm.rh_ice_pct, 2),
             "track": conditions.track,
             "cnt": cnt.as_dict(),
+            "evidence": evidence,
         },
     )
 

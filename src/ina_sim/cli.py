@@ -10,7 +10,7 @@ from pathlib import Path
 from ina_sim import __version__
 from ina_sim.library.loader import filter_candidates, load_candidates
 from ina_sim.models.conditions import Conditions
-from ina_sim.screen.rank import rank_candidates, screen_one
+from ina_sim.screen.rank import screen_one
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -64,6 +64,78 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Optional path to write JSON results",
     )
+
+    ns_p = sub.add_parser(
+        "ns",
+        help="Evaluate published ns(T) / J(T) parameterizations",
+        description=(
+            "Ice nucleation active site density ns(T), or nucleation rate "
+            "coefficient J(T), straight from the literature. Values outside a "
+            "source's fitted temperature range are withheld, not extrapolated."
+        ),
+    )
+    ns_p.add_argument("--temp", type=float, default=-15.0, help="Temperature °C")
+    ns_p.add_argument(
+        "--id",
+        dest="param_id",
+        default=None,
+        help="Parameterization id (default: all that cover this temperature)",
+    )
+    ns_p.add_argument(
+        "--candidate", default=None, help="Library candidate id instead of a parameterization"
+    )
+    ns_p.add_argument("--list", action="store_true", help="List the registry and exit")
+    ns_p.add_argument(
+        "--extrapolate",
+        action="store_true",
+        help="Return values outside the fitted range, flagged as extrapolated",
+    )
+    ns_p.add_argument("--json", action="store_true", help="JSON output")
+
+    fz = sub.add_parser(
+        "freeze",
+        help="Predict droplet-freezing observables (T50, frozen fraction)",
+        description=(
+            "Convert a parameterization into what a droplet-freezing assay "
+            "measures, so predictions can be compared with published data."
+        ),
+    )
+    fz.add_argument("--id", dest="param_id", required=True, help="Parameterization id")
+    fz.add_argument(
+        "--diameter", type=float, default=1.0, help="Particle diameter µm (default 1.0)"
+    )
+    fz.add_argument(
+        "--curve", action="store_true", help="Print the full freezing curve"
+    )
+    fz.add_argument("--step", type=float, default=1.0, help="Curve step °C")
+    fz.add_argument(
+        "--cooling-rate",
+        type=float,
+        default=1.0,
+        help="K/min, used only by rate (stochastic) parameterizations",
+    )
+    fz.add_argument(
+        "--droplet-diameter",
+        type=float,
+        default=10.0,
+        help="Droplet diameter µm, used by volume-based homogeneous freezing",
+    )
+    fz.add_argument("--json", action="store_true", help="JSON output")
+
+    val = sub.add_parser(
+        "validate",
+        help="Check this build against published claims",
+        description=(
+            "Re-derives whether the shipped parameterizations still reproduce "
+            "the literature claims in validation/anchors.yaml. Exit code 1 if "
+            "any anchor fails."
+        ),
+    )
+    val.add_argument("--json", action="store_true", help="JSON output")
+
+    refs = sub.add_parser("refs", help="Bibliography behind every number")
+    refs.add_argument("--key", default=None, help="Show one reference in full")
+    refs.add_argument("--json", action="store_true", help="JSON output")
 
     one = sub.add_parser("show", help="Show one candidate detail + screen at T")
     one.add_argument("id", help="Candidate id")
@@ -183,7 +255,6 @@ def _cmd_uploads() -> int:
 
 def _cmd_screen(args: argparse.Namespace) -> int:
     from ina_sim.gui.server import run_screen_payload
-    from ina_sim.library.loader import filter_candidates
 
     ids = list(args.ids) if args.ids else None
     if args.tag and not ids:
@@ -249,6 +320,25 @@ def _cmd_screen(args: argparse.Namespace) -> int:
         f"ok={lit.get('ok')}  hash={payload.get('provenance', {}).get('param_hash')}"
     )
     print("relINA = η / 0.85 (AgI-class). Bands = confidence uncertainty. Not operational rates.")
+    emp = payload.get("empirical_layer") or {}
+    summary = emp.get("summary") or {}
+    val = emp.get("validation") or {}
+    if summary:
+        n_solute = summary.get("solute", 0)
+        solute_phrase = (
+            f"{n_solute} is a soluble salt with no ns(T) at all"
+            if n_solute == 1
+            else f"{n_solute} are soluble salts with no ns(T) at all"
+        )
+        print(
+            f"Evidence: {summary.get('measured', 0)}/{summary.get('n_candidates', 0)} "
+            f"candidates have a parameterization, "
+            f"{summary.get('with_value_at_this_temperature', 0)} return a value at "
+            f"this temperature, {solute_phrase}.  "
+            f"Validation: {val.get('pass', '?')} passed / "
+            f"{val.get('fail', '?')} failed.  `ina-sim ns --temp "
+            f"{c['temperature_c']:g}` for the numbers."
+        )
     if payload.get("clamped"):
         print("NOTE: some inputs were clamped into the lab envelope.")
     warns = payload.get("warnings") or []
@@ -291,6 +381,234 @@ def _cmd_show(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_ns(args: argparse.Namespace) -> int:
+    from ina_sim.physics.ns import (
+        evaluate,
+        evaluate_for_candidate,
+        get_parameterization,
+        load_parameterizations,
+        registry_summary,
+    )
+
+    if args.list:
+        summary = registry_summary()
+        if args.json:
+            print(json.dumps(summary, indent=2))
+            return 0
+        print(
+            f"{summary['count']} parameterizations "
+            f"({summary['published']} published, {summary['derived']} derived in-repo)"
+        )
+        print(f"{'id':<32} {'basis':<10} {'valid T °C':>14}  {'σ':>5}  citation")
+        print("-" * 100)
+        for p in summary["parameterizations"]:
+            lo, hi = p["valid_t_c"]
+            sigma = "—" if p["sigma_log10"] is None else f"{p['sigma_log10']:.2f}"
+            print(
+                f"{p['id']:<32} {p['area_basis']:<10} "
+                f"{lo:>6.1f}..{hi:<6.1f} {sigma:>5}  {p['citation']}"
+            )
+        return 0
+
+    if args.candidate:
+        est = evaluate_for_candidate(
+            args.candidate, args.temp, allow_extrapolation=args.extrapolate
+        )
+        if est is None:
+            print(
+                f"No parameterization covers {args.candidate!r}. That is a real "
+                "answer: nothing in the literature this build carries measures it.",
+                file=sys.stderr,
+            )
+            return 1
+        estimates = [est]
+    elif args.param_id:
+        try:
+            estimates = [
+                evaluate(
+                    get_parameterization(args.param_id),
+                    args.temp,
+                    allow_extrapolation=args.extrapolate,
+                )
+            ]
+        except KeyError as e:
+            print(str(e), file=sys.stderr)
+            return 1
+    else:
+        estimates = [
+            evaluate(p, args.temp, allow_extrapolation=args.extrapolate)
+            for p in load_parameterizations().values()
+        ]
+
+    if args.json:
+        print(json.dumps([e.as_dict() for e in estimates], indent=2))
+        return 0
+
+    print(f"T = {args.temp:g} °C")
+    header = (
+        f"{'parameterization':<32} {'quantity':<8} {'value':>12} "
+        f"{'units':<11} {'basis':<10} status"
+    )
+    print(header)
+    print("-" * 100)
+    for est in sorted(estimates, key=lambda x: (x.value is None, -(x.value or 0.0))):
+        if est.value is None:
+            value, status = "—", "outside fitted range"
+        else:
+            value = f"{est.value:.3e}"
+            assumed = " (assumed)" if est.sigma_assumed else ""
+            status = f"±{est.sigma_log10:.2g} dec{assumed}"
+            if est.extrapolated:
+                status += " EXTRAPOLATED"
+        print(
+            f"{est.parameterization_id:<32} {est.quantity:<8} {value:>12} "
+            f"{est.units:<11} {est.area_basis:<10} {status}"
+        )
+    print()
+    print(
+        "ns values on different area bases (BET vs geometric) are not "
+        "comparable; rate coefficients are not densities at all."
+    )
+    for est in estimates:
+        for note in est.notes:
+            print(f"  [{est.parameterization_id}] {note}")
+    return 0
+
+
+def _cmd_freeze(args: argparse.Namespace) -> int:
+    from ina_sim.physics.freezing import (
+        freezing_curve,
+        median_freezing_temperature,
+        stochastic_freezing_curve,
+    )
+    from ina_sim.physics.ns import get_parameterization
+    from ina_sim.units import (
+        micrometres_to_metres,
+        sphere_surface_area_m2,
+        sphere_volume_m3,
+    )
+
+    try:
+        param = get_parameterization(args.param_id)
+    except KeyError as e:
+        print(str(e), file=sys.stderr)
+        return 1
+
+    area_m2 = sphere_surface_area_m2(micrometres_to_metres(args.diameter))
+
+    if param.quantity == "ns":
+        t50 = median_freezing_temperature(param, area_m2)
+        curve = (
+            freezing_curve(param, droplet_surface_area_m2=area_m2, step_c=args.step)
+            if args.curve
+            else []
+        )
+        payload = {
+            "parameterization": param.id,
+            "material": param.material,
+            "description": "singular (time independent)",
+            "particle_diameter_um": args.diameter,
+            "particle_surface_area_m2": area_m2,
+            "t50_c": t50,
+            "curve": [p.as_dict() for p in curve],
+            "citation": param.as_dict()["citation"],
+        }
+    else:
+        volume_m3 = sphere_volume_m3(micrometres_to_metres(args.droplet_diameter))
+        is_hom = param.area_basis == "volume"
+        curve_rows = stochastic_freezing_curve(
+            None if is_hom else param,
+            particle_area_m2=0.0 if is_hom else area_m2,
+            droplet_volume_m3=volume_m3,
+            hom_param=param if is_hom else None,
+            cooling_rate_k_per_min=args.cooling_rate,
+            t_start_c=param.t_max_c,
+            t_end_c=param.t_min_c,
+            step_c=min(args.step, 0.05),
+        )
+        t50 = next((r["T_c"] for r in curve_rows if r["frozen_fraction"] >= 0.5), None)
+        payload = {
+            "parameterization": param.id,
+            "material": param.material,
+            "description": f"stochastic (rate), cooling {args.cooling_rate} K/min",
+            "particle_diameter_um": None if is_hom else args.diameter,
+            "droplet_diameter_um": args.droplet_diameter,
+            "t50_c": t50,
+            "curve": curve_rows if args.curve else [],
+            "citation": param.as_dict()["citation"],
+        }
+
+    if args.json:
+        print(json.dumps(payload, indent=2))
+        return 0
+
+    print(f"{param.material}  [{param.id}]")
+    print(f"  description:  {payload['description']}")
+    print(f"  citation:     {payload['citation']}")
+    print(f"  valid range:  {param.t_min_c:g} .. {param.t_max_c:g} °C")
+    if payload.get("particle_diameter_um"):
+        print(f"  particle:     {args.diameter:g} µm sphere, area {area_m2:.3e} m²")
+    if param.quantity != "ns":
+        print(f"  droplet:      {args.droplet_diameter:g} µm")
+    if payload["t50_c"] is None:
+        print("  T50:          not reached inside the fitted range")
+    else:
+        print(f"  T50:          {payload['t50_c']:.2f} °C (half of droplets frozen)")
+    if args.curve:
+        print()
+        print(f"{'T °C':>8}  frozen fraction")
+        for row in payload["curve"]:
+            frozen = row["frozen_fraction"]
+            bar = "#" * int(round(frozen * 40))
+            print(f"{row['T_c']:>8.2f}  {frozen:>6.3f} {bar}")
+    return 0
+
+
+def _cmd_validate(args: argparse.Namespace) -> int:
+    from ina_sim.validation.runner import format_report, run_validation
+
+    report = run_validation()
+    if args.json:
+        print(json.dumps(report.as_dict(), indent=2))
+    else:
+        print(format_report(report))
+    return 0 if report.ok else 1
+
+
+def _cmd_refs(args: argparse.Namespace) -> int:
+    from ina_sim.references import get_reference, load_references
+
+    refs = load_references()
+    if args.key:
+        try:
+            ref = get_reference(args.key)
+        except KeyError as e:
+            print(str(e), file=sys.stderr)
+            return 1
+        if args.json:
+            print(json.dumps({**ref.as_dict(), "note": ref.note}, indent=2))
+            return 0
+        print(ref.citation())
+        print(f"  access:      {ref.access}")
+        print(f"  open access: {ref.open_access}")
+        if ref.url:
+            print(f"  url:         {ref.url}")
+        if ref.note:
+            print(f"  note:        {' '.join(ref.note.split())}")
+        return 0
+
+    if args.json:
+        print(json.dumps([r.as_dict() for r in refs.values()], indent=2))
+        return 0
+    print(f"{len(refs)} references")
+    for key, ref in refs.items():
+        flag = "open" if ref.open_access else "paywalled"
+        print(f"  {key:<16} {ref.short():<32} {ref.access:<9} {flag}")
+        if ref.doi:
+            print(f"  {'':<16} doi:{ref.doi}")
+    return 0
+
+
 def _cmd_gui(args: argparse.Namespace) -> int:
     from ina_sim.gui.server import run_gui
 
@@ -307,6 +625,14 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_screen(args)
     if args.cmd == "show":
         return _cmd_show(args)
+    if args.cmd == "ns":
+        return _cmd_ns(args)
+    if args.cmd == "freeze":
+        return _cmd_freeze(args)
+    if args.cmd == "validate":
+        return _cmd_validate(args)
+    if args.cmd == "refs":
+        return _cmd_refs(args)
     if args.cmd == "gui":
         return _cmd_gui(args)
     if args.cmd == "upload":

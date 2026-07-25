@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ina-sim"
-version = "0.2.1"
+version = "0.3.0"
 description = "Local multi-fidelity ice nucleation agent (INA) screening lab for weather-modification R&D"
 readme = "README.md"
 license = { text = "MIT" }
@@ -43,7 +43,13 @@ ina-sim = "ina_sim.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-ina_sim = ["library/*.yaml", "gui/static/*"]
+ina_sim = [
+  "py.typed",
+  "library/*.yaml",
+  "gui/static/*",
+  "validation/*.yaml",
+  "validation/datasets/*.yaml",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

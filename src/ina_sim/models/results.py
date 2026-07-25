@@ -54,5 +54,13 @@ class ScreenResult:
             "source": self.details.get("source"),
             "citation": self.details.get("citation"),
             "cnt": self.details.get("cnt"),
+            # Empirical layer: what is measured for this material, if anything.
+            # Additive by design so existing consumers keep working unchanged.
+            "evidence": self.details.get("evidence"),
+            "ns_m2": ((self.details.get("evidence") or {}).get("ns") or {}).get("value"),
+            "ns_units": ((self.details.get("evidence") or {}).get("ns") or {}).get("units"),
+            "ns_citation": (
+                ((self.details.get("evidence") or {}).get("ns") or {}).get("citation")
+            ),
             "warnings": "; ".join(self.warnings) if self.warnings else "",
         }

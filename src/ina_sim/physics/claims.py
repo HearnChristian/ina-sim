@@ -79,7 +79,8 @@ def extract_claims(
                     "basis": "model ranking under stated assumptions + activity tables",
                 }
                 # Align with literature xref when relevant
-                if better in ("k_feldspar", "agi") and worse in ("kaolinite", "nacl", "water_control"):
+                weaker = ("kaolinite", "nacl", "water_control")
+                if better in ("k_feldspar", "agi") and worse in weaker:
                     if literature_ok:
                         supported.append(entry)
                     else:
@@ -87,7 +88,8 @@ def extract_claims(
                             {
                                 **entry,
                                 "basis": entry["basis"]
-                                + f"; literature_xref failed: {', '.join(literature_fails) or 'see checks'}",
+                                + "; literature_xref failed: "
+                                + (", ".join(literature_fails) or "see checks"),
                             }
                         )
                 else:

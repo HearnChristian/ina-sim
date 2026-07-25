@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 SCREEN_RESULT_REQUIRED = {
     "id",
     "name",
@@ -29,6 +28,7 @@ SCREEN_PAYLOAD_REQUIRED = {
     "literature_xref",
     "assumptions",
     "empirical_claims",
+    "empirical_layer",
     "score_scale",
 }
 

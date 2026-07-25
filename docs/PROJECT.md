@@ -121,6 +121,24 @@ tests/ golden fixtures, properties, literature, stress
 
 Uploads get **placeholder** η and always exploratory confidence.
 
+**This is the ranking layer, and it is a convention, not a measurement.** Since
+v0.3.0 a second, separate layer answers the harder question — what has anybody
+actually measured? See `docs/METHODS.md`:
+
+\[
+n_s(T)\ \text{[m}^{-2}\text{]}, \quad f = 1 - e^{-n_s A}, \quad
+n_s = \frac{-\ln(1-f)}{A}\ \text{(Vali 1971)}
+\]
+
+- 8 parameterizations in `library/parameterizations.yaml`, each with units,
+  surface-area basis, validity range, sigma and DOI
+- outside a source's fitted range the tool returns **nothing**, not an
+  extrapolation
+- BET and geometric ns values are never ranked against each other
+- soluble salts (NaCl, CaCl2, KI) get colligative freezing-point depression and
+  an explicit "no ns(T) exists" — KI was reclassified out of `ice_nucleant`
+- `ina-sim validate` re-derives 5 literature anchors on every CI run
+
 ---
 
 ## 6. Starter library (intent)
@@ -131,7 +149,11 @@ Uploads get **placeholder** η and always exploratory confidence.
 | `k_feldspar` | Strong mineral INA | Often warmer / more active than clays (Atkinson et al.) |
 | `kaolinite` | Weaker clay | Typically colder / lower activity than feldspar |
 | `water_control` | Negative | Homogeneous ~−35…−38 °C class |
-| `nacl` | CCN contrast | Sea salt ≠ strong INA |
+| `nacl` | CCN contrast | Soluble salt, no ns(T); depresses freezing |
+| `ki` | Soluble salt | Reclassified v0.3.0 — was wrongly an `ice_nucleant` |
+
+Measured coverage: `agi`, `k_feldspar`, `kaolinite` and `water_control` have a
+parameterization; the rest are heuristic only, and every screen says so.
 
 See `docs/LITERATURE-CHECKS.md` and `physics/research_xref.py`.
 
@@ -209,6 +231,9 @@ Key anchors (see also literature doc):
 | `docs/INA-sim-mvp.md` | Mission lock summary |
 | `docs/LITERATURE-CHECKS.md` | Testable literature anchors |
 | `docs/ARCHITECTURE.md` | Fidelity ladder sketch |
+| **`docs/METHODS.md`** | **Every equation, unit, source and enforced rule** |
+| `docs/VALIDATION.md` | Generated: anchors this build reproduces |
+| `docs/REFERENCES.md` | Generated: bibliography with DOIs and usage |
 | `docs/voice-note-prompts.md` | Historical free-association prompts |
 | `README.md` | Install + quick start |
 
@@ -218,6 +243,7 @@ Key anchors (see also literature doc):
 
 | Date | Note |
 |------|------|
+| 2026-07-25 | **v0.3.0** Empirical layer: published ns(T)/J(T) registry with DOIs, units and validity guards; Vali inversion + T50 + INP concentration; stochastic (Murray 2011) freezing; derived AgI fit from Marcolli 2016 Table 1 (sigma 1.8 decades, honestly reported); validation anchors in CI; KI reclassified as a soluble salt; 248 tests; mypy clean |
 | 2026-07-24 | **v0.2.1** Score scale fixed 0–1 (AgI peak=1); plotters+axes; T-sweep X label; empirical_claims extraction |
 | 2026-07-24 | UI refine: upload→Physics menu; Core agents only; tip toggle; INA/CCN plain language; larger sketch + axes |
 | 2026-07-24 | **v0.2** Professional upgrade: activity tables, tracks, bands, provenance, golden CI, assumptions UI, roadmap, demo/one-pager, CONTRIBUTING |

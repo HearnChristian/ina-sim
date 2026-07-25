@@ -161,7 +161,6 @@ def parse_smiles(smiles: str) -> MoleculeRecord:
 
 
 def parse_xyz(text: str) -> MoleculeRecord:
-    lines = [ln.rstrip() for ln in text.strip().splitlines() if ln.strip() != "" or True]
     # standard XYZ: n, comment, then n lines
     raw_lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
     if len(raw_lines) < 3:
@@ -288,7 +287,9 @@ def _heuristic_descriptors(
         cx = sum(c[0] for c in coords) / len(coords)
         cy = sum(c[1] for c in coords) / len(coords)
         cz = sum(c[2] for c in coords) / len(coords)
-        rg2 = sum((c[0] - cx) ** 2 + (c[1] - cy) ** 2 + (c[2] - cz) ** 2 for c in coords) / len(coords)
+        rg2 = sum(
+            (c[0] - cx) ** 2 + (c[1] - cy) ** 2 + (c[2] - cz) ** 2 for c in coords
+        ) / len(coords)
         desc["radius_gyration_A"] = round(math.sqrt(rg2), 4)
     return desc
 

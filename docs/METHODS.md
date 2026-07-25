@@ -1,0 +1,227 @@
+# Methods
+
+Every equation INA-sim evaluates, with its symbols, units, source and range of
+validity. If a number appears in the tool and not in this document, that is a
+bug — file it.
+
+Two layers run side by side and are never mixed:
+
+| | heuristic layer | empirical layer |
+|---|---|---|
+| answers | "which of these would I try first?" | "what has anyone measured?" |
+| output | relative score 0–1 vs AgI | ns(T) in m⁻², J(T), frozen fraction, T50 |
+| basis | shaped activity curves | published fits with DOIs |
+| lives in | `library/activity_curves.yaml` | `library/parameterizations.yaml` |
+| honest use | ordering a shortlist | quoting a number |
+
+The relative score is a convention. The empirical layer is evidence. The CLI
+prints both and labels which is which.
+
+---
+
+## 1. Symbols and units
+
+| symbol | quantity | unit | note |
+|---|---|---|---|
+| `T` | temperature | °C unless a name ends `_k` | sources vary; conversions in `units.py` |
+| `ns(T)` | ice nucleation active site density | m⁻² (SI, internal) | sources often publish cm⁻² |
+| `A` | particle surface area | m² | sphere-equivalent unless stated |
+| `f` | frozen fraction of droplets | dimensionless, [0, 1] | the actual laboratory observable |
+| `J_het` | heterogeneous nucleation rate coefficient | cm⁻² s⁻¹ | kept in source CGS on purpose |
+| `J_hom` | homogeneous nucleation rate coefficient | cm⁻³ s⁻¹ | per liquid volume, not per area |
+| `V` | droplet volume | m³ (converted to cm³ for `J_hom`) | |
+| `σ_log10` | 1σ uncertainty of log₁₀(ns) | decades | from the source, or flagged as assumed |
+| `T50` | median freezing temperature | °C | temperature where `f = 0.5` |
+
+Terminology follows Vali et al. (2015): particles that nucleate ice are **ice
+nucleating particles (INP)**, and `ns` has dimension L⁻².
+
+Rate coefficients are deliberately **not** converted to SI. Every paper quotes
+them in CGS; converting on the way in and out is how a factor of 10⁴ gets lost.
+
+---
+
+## 2. Singular description (Vali, 1971)
+
+Active sites are treated as a fixed, temperature-ordered property of a surface.
+Freezing is time independent. For droplets each carrying particle surface area
+`A`:
+
+```
+f(T) = 1 - exp(-ns(T) · A)                              (1)
+ns(T) = -ln(1 - f) / A                                  (2)   [inversion]
+```
+
+Equation (2) is undefined at `f = 0` (no information) and diverges at `f = 1`;
+`ns_from_frozen_fraction` raises in both cases instead of returning a number.
+
+The median freezing temperature solves `ns(T50) · A = ln 2`, found by bisection
+inside the parameterization's validity range only. If the crossing lies outside
+that range, `median_freezing_temperature` returns `None` rather than an
+extrapolation dressed as a prediction.
+
+INP concentration from an aerosol population uses the exact per-particle
+activation probability, so it saturates at the number of particles present:
+
+```
+n_INP = N · (1 - exp(-ns · A_particle))                  (3)
+```
+
+not the linearised `N · ns · A`, which exceeds `N` when `ns·A` is large.
+Implementation: `physics/freezing.py`.
+
+## 3. Stochastic description (Murray et al., 2011)
+
+Nucleation is a rate process, so the answer depends on how long droplets are
+held cold. Survival probability over a time step `Δt`:
+
+```
+f = 1 - exp(-(J_hom · V + Σᵢ J_i · σᵢ) · Δt)             (4)
+```
+
+This is Eq. (18)–(19) of Murray et al. (2011). A cooling ramp integrates (4)
+step by step, converting each temperature step to a dwell time from the cooling
+rate: `Δt = (ΔT / rate) · 60 s`.
+
+The two descriptions disagree, and that disagreement is physical, not a defect:
+slower cooling freezes warmer under (4) and not at all under (1).
+`compare_descriptions` reports the gap so it can be read as a bound on how much
+of an answer is model choice.
+
+---
+
+## 4. The parameterizations
+
+All entries live in `src/ina_sim/library/parameterizations.yaml` with their
+units, area basis, validity range, uncertainty and reference key. Evaluate any
+of them with `ina-sim ns --temp -20`.
+
+### 4.1 Mineral INAS densities — Harrison et al. (2019)
+
+`ns` in **cm⁻²**, `T` in °C, **BET** surface area basis. Quoted verbatim:
+
+```
+K-feldspar   log₁₀ ns = -3.25 - 0.793 T - 6.91e-2 T² - 4.17e-3 T³
+                        - 1.05e-4 T⁴ - 9.08e-7 T⁵      (-3.5 … -37.5 °C; σ 0.8)
+quartz       log₁₀ ns = -1.709 + 7e-2 T + 1.75e-2 T² + 2.66e-4 T³
+                                                       (-10.5 … -37.5 °C; σ 0.8)
+plagioclase  log₁₀ ns = -12 - 1.71 T - 0.106 T² - 3.17e-3 T³ - 3.24e-5 T⁴
+                                                       (-12.5 … -38.5 °C; σ 0.5)
+albite       log₁₀ ns = -2.29 - 1.79e-2 T + 1.89e-2 T² + 3.41e-4 T³
+                                                       (-6.5 … -35.5 °C; σ 0.7)
+```
+
+The paper's own ordering claim — plagioclase least active, K-feldspar most
+active, albite and quartz intermediate and similar — is enforced as a
+validation anchor.
+
+### 4.2 Desert dust — Niemand et al. (2012)
+
+`ns` in **m⁻²**, `T` in °C, **geometric** (aerosol size distribution) basis:
+
+```
+ns(T) = exp(8.934 - 0.517 T)                            (-36 … -12 °C)
+```
+
+The source states no σ. INA-sim substitutes 1.0 decade — the spread Hiranuma
+et al. (2015) found between 17 techniques measuring one sample — and marks the
+result `sigma_assumed: true` everywhere it appears.
+
+### 4.3 Kaolinite — Murray et al. (2011), Eq. (24)
+
+Rate coefficient, `T` in **kelvin**, `J` in cm⁻² s⁻¹:
+
+```
+J_het(T) = exp(-0.8802 T + 222.17)                      (236.1 … 245.5 K)
+```
+
+### 4.4 Homogeneous freezing of pure water — Murray et al. (2010)
+
+Per liquid **volume**, `T` in kelvin, `J` in cm⁻³ s⁻¹:
+
+```
+J_hom(T) = exp(-2.92 T + 706.5)                         (234.9 … 236.7 K)
+```
+
+A volume rate is not an area density. The comparison guard refuses to rank it
+against any `ns`.
+
+### 4.5 Silver iodide — derived here, not published
+
+AgI has no published INAS parameterization. INA-sim derives one from the 19
+usable immersion-freezing rows of Marcolli et al. (2016) Table 1, inverted with
+Eq. (2) on sphere-equivalent geometric area:
+
+```
+log₁₀ ns[m⁻²] = 8.7913 - 0.2009 T                       (-22.2 … -5.2 °C)
+n = 19, R² = 0.26, residual σ = 1.82 decades
+```
+
+**Read the R² before quoting the number.** Aerosol-generated AgI nanoparticles
+sit up to 3.5 decades above cold-stage crystal studies at the same temperature.
+Surface area does not describe AgI on its own — which is what the review itself
+concludes. The fit is a central estimate with a wide, explicit band, and the
+band is validated against the data it came from.
+
+Regenerate with `python tools/fit_agi_ns.py`; the shipped coefficients and the
+dataset hash are checked in CI.
+
+### 4.6 Soluble salts — no ns exists
+
+NaCl, CaCl₂ and KI are not ice nucleants. They depress the freezing point
+colligatively and lower water activity, which **suppresses** freezing
+(Koop et al., 2000):
+
+```
+ΔTf = i · Kf · b        Kf = 1.86 K kg mol⁻¹, ideal dilute limit
+```
+
+with van 't Hoff factors i = 2 (NaCl, KI) and 3 (CaCl₂). Beyond ~1 molal the
+ideal law stops being quantitative and the result is flagged
+`ideal_limit_exceeded`.
+
+KI was reclassified from `ice_nucleant` to a soluble salt in v0.3.0. Its earlier
+0.55 "efficiency" came from a supercooled-water calculator where KI was a
+freezing-point depressant — the opposite effect. Sharing an iodide ion with AgI
+confers no ice nucleation ability.
+
+---
+
+## 5. Rules the code enforces
+
+**No silent extrapolation.** Outside the temperature range its source fitted, a
+parameterization returns nothing. `--extrapolate` overrides this and stamps the
+result `EXTRAPOLATED` with a note that the source does not support it.
+
+**No mixing area bases.** BET and geometric surface areas differ by more than an
+order of magnitude for fine-grained samples (Hiranuma et al., 2015), so
+`assert_comparable` raises `AreaBasisError` on any attempt to rank ns values
+across bases, or to compare a density with a rate.
+
+**No unstated uncertainty.** Where a source gives no σ, the substituted default
+is documented, attributed and flagged rather than hidden.
+
+**No unreferenced numbers.** Every parameterization and anchor names a key in
+`library/references.yaml`; `tests/test_validation_and_references.py` fails the
+build if one does not resolve, if a reference cannot be located by DOI, URL or
+publisher, or if the bibliography grows an entry nothing uses.
+
+**No unmeasured material presented as measured.** Each screened candidate
+carries an evidence block: `measured`, `solute`, or `none`. Most of the library
+is `none`, and it says so in the CLI output.
+
+---
+
+## 6. What this still is not
+
+- Not a calibration to any specific field campaign or seeding operation.
+- Not a source of operational rates, dosages or precipitation forecasts.
+- Not a substitute for a droplet-freezing assay: it predicts what one would
+  measure, which is a claim that can be checked, not a measurement.
+- Not complete: eight parameterizations covering four library candidates. The
+  gaps are visible on purpose (`ina-sim ns --list`).
+
+## 7. References
+
+`ina-sim refs` prints the bibliography with DOIs and how each source was used.
+See also [REFERENCES.md](REFERENCES.md).

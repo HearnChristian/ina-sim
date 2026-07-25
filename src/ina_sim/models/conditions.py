@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 
 from ina_sim.physics.validate import (
+    DENSITY_MAX_PER_L,
     DIAMETER_MAX_UM,
     DIAMETER_MIN_UM,
-    DENSITY_MAX_PER_L,
     P_MAX_HPA,
     P_MIN_HPA,
     T_MAX_C,

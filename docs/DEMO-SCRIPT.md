@@ -35,3 +35,29 @@ Hard-refresh browser if the page was already open.
 - NaCl ranks above AgI on ice track at −10 °C  
 - Export claims operational guidance  
 - No uncertainty or source visible  
+- `ina-sim validate` does not come back green
+
+## Appendix: "where do these numbers come from?"
+
+Not part of the 90 seconds. Use it when someone technical pushes back — this is
+the part that separates a demo from a tool.
+
+```bash
+ina-sim ns --list          # 8 parameterizations, 7 published + 1 derived here
+ina-sim ns --temp -20      # ns(T) with units, area basis, sigma and citation
+ina-sim validate           # 5 anchors re-derived against published claims
+ina-sim refs --key harrison2019
+```
+
+Three answers worth having ready:
+
+- **"Is the ranking measured?"** No. The relative score is a ranking
+  convention; the empirical layer is separate and reports which candidates have
+  a published ns(T) at all. Most do not, and the CLI prints that count.
+- **"How good is the AgI number?"** Derived here from Marcolli et al. (2016)
+  Table 1: R² = 0.26, σ = 1.8 decades. Sixty years of AgI experiments do not
+  collapse onto one surface-area scaling — the review reaches the same
+  conclusion. The band is wide because the evidence is.
+- **"Why is K-feldspar below desert dust at −12 °C?"** Different surface-area
+  bases: BET for the mineral fits, geometric for the dust fit. The tool refuses
+  to rank across bases rather than quietly comparing them.

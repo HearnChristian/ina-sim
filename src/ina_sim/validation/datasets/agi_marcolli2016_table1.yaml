@@ -1,0 +1,211 @@
+# AgI immersion-freezing measurements digitized from Table 1 of
+#   Marcolli, C., Nagare, B., Welti, A., Lohmann, U. (2016)
+#   "Ice nucleation efficiency of AgI: review and new insights"
+#   Atmos. Chem. Phys. 16, 8915-8937, doi:10.5194/acp-16-8915-2016
+#   (open access; Table 1 "Immersion freezing studies with AgI or related salts")
+#
+# Each row is transcribed as published: particle diameter, particles per
+# droplet, activated (frozen) fraction, freezing temperature. Nothing here is
+# interpolated or invented. The conversion to an ice nucleation active site
+# density is done in tools/fit_agi_ns.py, not here, so the raw numbers stay
+# auditable against the paper.
+#
+# Inversion applied downstream (Vali 1971, singular approximation):
+#     ns(T) = -ln(1 - f) / (N_particles_per_droplet * pi * d^2)
+# with sphere-equivalent geometric surface area pi*d^2. This is a GEOMETRIC
+# area basis, not BET, and it is a lower bound on true surface area for
+# irregular particles -> ns derived here is an upper bound.
+#
+# use_in_fit: false rows are kept for transparency but excluded from the fit;
+# every exclusion carries a reason.
+
+version: 1
+source_reference: marcolli2016
+source_table: "Table 1 (immersion freezing)"
+area_basis: geometric
+inversion: "vali1971_singular"
+
+measurements:
+  # --- Edwards et al. (1962), cold stage, monodisperse precipitated AgI ---
+  - study: Ed62
+    study_full: "Edwards, Evans and Zipper (1962), as tabulated by Marcolli et al. (2016)"
+    diameter_nm: 170
+    particles_per_droplet: 10
+    frozen_fraction: 0.50
+    temperature_k: 255.0
+    use_in_fit: true
+  - study: Ed62
+    diameter_nm: 170
+    particles_per_droplet: 100
+    frozen_fraction: 0.50
+    temperature_k: 260.0
+    use_in_fit: true
+  - study: Ed62
+    diameter_nm: 750
+    particles_per_droplet: 2
+    frozen_fraction: 0.50
+    temperature_k: 258.0
+    use_in_fit: true
+  - study: Ed62
+    diameter_nm: 750
+    particles_per_droplet: 10
+    frozen_fraction: 0.50
+    temperature_k: 260.0
+    use_in_fit: true
+  - study: Ed62
+    diameter_nm: 750
+    particles_per_droplet: 100
+    frozen_fraction: 0.50
+    temperature_k: 263.0
+    use_in_fit: true
+  - study: Ed62
+    diameter_nm: 3500
+    particles_per_droplet: 2
+    frozen_fraction: 0.50
+    temperature_k: 263.0
+    use_in_fit: true
+  - study: Ed62
+    diameter_nm: 3500
+    particles_per_droplet: 20
+    frozen_fraction: 0.50
+    temperature_k: 266.0
+    use_in_fit: true
+
+  # --- Edwards and Evans (1968), same cold-stage method, 4 um crystals ---
+  - study: EE68
+    diameter_nm: 4000
+    particles_per_droplet: 1000
+    frozen_fraction: 0.50
+    temperature_k: 268.0
+    use_in_fit: true
+  - study: EE68
+    diameter_nm: 4000
+    particles_per_droplet: 100
+    frozen_fraction: 0.50
+    temperature_k: 267.5
+    use_in_fit: true
+  - study: EE68
+    diameter_nm: 4000
+    particles_per_droplet: 10
+    frozen_fraction: 0.50
+    temperature_k: 267.0
+    use_in_fit: true
+  - study: EE68
+    diameter_nm: 4000
+    particles_per_droplet: 2
+    frozen_fraction: 0.50
+    temperature_k: 266.0
+    use_in_fit: true
+
+  # --- Emulsion / DSC studies, one particle per droplet assumed by Marcolli ---
+  - study: Zo08
+    study_full: "Zobrist et al. (2008)"
+    diameter_nm: 440
+    particles_per_droplet: 1
+    frozen_fraction: 0.50
+    temperature_k: 251.5
+    use_in_fit: true
+    note: "particles-per-droplet assumed = 1 in the source table"
+  - study: Ag82
+    study_full: "Aguerd et al. (1982)"
+    diameter_nm: 240
+    particles_per_droplet: 1
+    frozen_fraction: 0.50
+    temperature_k: 251.0
+    use_in_fit: true
+    note: "particles-per-droplet assumed = 1 in the source table"
+
+  # --- Sax and Goldsmith (1972), falling droplets, heated-wire AgI ---
+  - study: SG72
+    diameter_nm: 30
+    particles_per_droplet: 100
+    frozen_fraction: 0.50
+    temperature_k: 256.0
+    use_in_fit: true
+
+  # --- Marcolli et al. (2016) own IMCA-ZINC measurements, 1 particle/droplet ---
+  # 10 s residence time size series (main text: 40-400 nm all freeze near 264 K)
+  - study: Ma16_10s
+    diameter_nm: 30
+    particles_per_droplet: 1
+    frozen_fraction: 0.50
+    temperature_k: 259.0
+    use_in_fit: true
+  - study: Ma16_10s
+    diameter_nm: 40
+    particles_per_droplet: 1
+    frozen_fraction: 0.50
+    temperature_k: 264.0
+    use_in_fit: true
+  - study: Ma16_10s
+    diameter_nm: 50
+    particles_per_droplet: 1
+    frozen_fraction: 0.50
+    temperature_k: 264.0
+    use_in_fit: true
+  - study: Ma16_10s
+    diameter_nm: 200
+    particles_per_droplet: 1
+    frozen_fraction: 0.50
+    temperature_k: 264.0
+    use_in_fit: true
+  - study: Ma16_10s
+    diameter_nm: 400
+    particles_per_droplet: 1
+    frozen_fraction: 0.50
+    temperature_k: 264.0
+    use_in_fit: true
+  - study: Ma16_10s
+    diameter_nm: 20
+    particles_per_droplet: 1
+    frozen_fraction: 0.50
+    temperature_k: 236.5
+    use_in_fit: false
+    exclude_reason: >-
+      Marcolli et al. state that for 20 nm particles "most droplets froze
+      homogeneously", so this point measures homogeneous freezing of the
+      droplet, not heterogeneous nucleation on AgI.
+
+  # 3 s residence time series - kept as evidence of time dependence
+  - study: Ma16_3s
+    diameter_nm: 200
+    particles_per_droplet: 1
+    frozen_fraction: 0.10
+    temperature_k: 265.0
+    use_in_fit: false
+    exclude_reason: >-
+      Short-residence-time series. Comparing 200 nm at 3 s (T50 = 262 K) with
+      200 nm at 10 s (T50 = 264 K) shows freezing is time dependent, which the
+      singular ns(T) description cannot represent; excluded so the fit stays a
+      clean singular-limit estimate.
+  - study: Ma16_3s
+    diameter_nm: 200
+    particles_per_droplet: 1
+    frozen_fraction: 0.50
+    temperature_k: 262.0
+    use_in_fit: false
+    exclude_reason: "short-residence-time series (see 3 s note above)"
+  - study: Ma16_3s
+    diameter_nm: 400
+    particles_per_droplet: 1
+    frozen_fraction: 0.50
+    temperature_k: 263.0
+    use_in_fit: false
+    exclude_reason: "short-residence-time series (see 3 s note above)"
+  - study: Ma16_3s
+    diameter_nm: 200
+    particles_per_droplet: 1
+    frozen_fraction: 1.00
+    temperature_k: 255.0
+    use_in_fit: false
+    exclude_reason: >-
+      Frozen fraction of exactly 1 is not invertible: -ln(1 - f) diverges.
+
+# Rows in Table 1 deliberately not transcribed, with reasons:
+#   EE62 (Edwards and Evans 1962) - droplets doped with AgNO3 or KI to vary
+#     surface charge; the paper shows freezing temperature drops by up to 12 K,
+#     so these measure the solute effect, not clean AgI.
+#   DM95 (DeMott 1995) - AgI-AgCl, a different and more active material.
+#   Ho61, Da75, VB84, Pa86, La78 - particle size, particle number per droplet
+#     or the immersion geometry is not specified, so the inversion has no
+#     defined surface area.
