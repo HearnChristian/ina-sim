@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+title: "INA-sim: a traceable ice nucleation screening lab"
+message: >-
+  If you use INA-sim in work you publish, please cite it, and cite the
+  underlying parameterizations directly — every number this tool reports names
+  its own source, and those sources deserve the credit. Run `ina-sim refs` for
+  the full bibliography with DOIs.
+type: software
+authors:
+  - family-names: Hearn
+    given-names: Christian Thomas
+repository-code: "https://github.com/HearnChristian/ina-sim"
+abstract: >-
+  A local, offline screening tool for ice nucleating agents. It separates a
+  heuristic ranking layer from an empirical layer of published ice nucleation
+  active site density parameterizations, each carried with its units, surface
+  area basis, fitted temperature range, stated uncertainty and DOI. The tool
+  refuses to extrapolate beyond a source's fitted range, refuses to compare
+  values measured on different surface area bases, and re-derives the published
+  claims it depends on as part of its test suite. It imports droplet-freezing
+  experiments, propagates uncertainty by Monte Carlo, and records every run in a
+  hash-chained audit log.
+keywords:
+  - ice-nucleation
+  - atmospheric-science
+  - cloud-seeding
+  - weather-modification
+  - reproducible-research
+license: MIT

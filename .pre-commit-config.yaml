@@ -1,0 +1,45 @@
+# Run the same checks CI runs, before the commit rather than after it.
+#   pip install pre-commit && pre-commit install
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+        args: ["--maxkb=512"]
+      - id: check-merge-conflict
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.0
+    hooks:
+      - id: ruff
+        args: [--fix]
+
+  - repo: local
+    hooks:
+      # These three keep the empirical layer honest, and are fast enough to run
+      # on every commit. If any fails, the build is describing numbers it no
+      # longer reproduces.
+      - id: validation-anchors
+        name: published claims still reproduced
+        entry: python -m ina_sim validate
+        language: system
+        pass_filenames: false
+        files: '^src/ina_sim/(library|validation)/'
+
+      - id: derived-fit-current
+        name: derived AgI fit matches its dataset
+        entry: python tools/fit_agi_ns.py --check
+        language: system
+        pass_filenames: false
+        files: '^src/ina_sim/(library/parameterizations.yaml|validation/datasets/)'
+
+      - id: generated-docs-current
+        name: generated docs match the registry
+        entry: python tools/gen_docs.py --check
+        language: system
+        pass_filenames: false
+        files: '^src/ina_sim/(library|validation)/'

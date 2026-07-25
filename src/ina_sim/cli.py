@@ -401,6 +401,17 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     val.add_argument("--json", action="store_true", help="JSON output")
 
+    doc = sub.add_parser(
+        "doctor",
+        help="Run every self-check: can this build be trusted?",
+        description=(
+            "Environment, registry integrity, validation anchors, derived-fit "
+            "freshness, generated-doc freshness and the audit chain, in one "
+            "command. Exit code 1 if any check fails."
+        ),
+    )
+    doc.add_argument("--json", action="store_true", help="JSON output")
+
     refs = sub.add_parser("refs", help="Bibliography behind every number")
     refs.add_argument("--key", default=None, help="Show one reference in full")
     refs.add_argument("--json", action="store_true", help="JSON output")
@@ -1595,6 +1606,27 @@ def _cmd_history(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_doctor(args: argparse.Namespace) -> int:
+    from ina_sim.doctor import format_report, run_doctor
+
+    checks = run_doctor()
+    failed = [c for c in checks if c.status == "fail"]
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "version": __version__,
+                    "ok": not failed,
+                    "checks": [c.as_dict() for c in checks],
+                },
+                indent=2,
+            )
+        )
+    else:
+        print(format_report(checks))
+    return 1 if failed else 0
+
+
 def _cmd_validate(args: argparse.Namespace) -> int:
     from ina_sim.validation.runner import format_report, run_validation
 
@@ -1674,6 +1706,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_scenario(args)
     if args.cmd == "history":
         return _cmd_history(args)
+    if args.cmd == "doctor":
+        return _cmd_doctor(args)
     if args.cmd == "freeze":
         return _cmd_freeze(args)
     if args.cmd == "validate":

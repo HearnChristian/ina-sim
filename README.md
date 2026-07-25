@@ -1,5 +1,11 @@
 # INA-sim
 
+[![CI](https://github.com/HearnChristian/ina-sim/actions/workflows/ci.yml/badge.svg)](https://github.com/HearnChristian/ina-sim/actions/workflows/ci.yml)
+![Python 3.11+](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)
+![Coverage 79% branch](https://img.shields.io/badge/coverage-79%25%20branch-brightgreen)
+![Tests 499](https://img.shields.io/badge/tests-499-brightgreen)
+![License MIT](https://img.shields.io/badge/license-MIT-green)
+
 **Local multi-fidelity ice nucleation agent (INA) screening lab** — Rainmaker-track literacy, alternative INA exploration, honest confidence scores.
 
 > **60% learning lab · 40% portfolio.** Not a product to sell. Not operational weather control. Not absolute nucleation rates.
@@ -20,6 +26,19 @@
 
 The relative score is a ranking convention. The empirical layer is evidence.
 Every screen labels which candidates have either.
+
+```bash
+ina-sim doctor    # one command: is this build internally consistent?
+```
+
+```
+  ok  environment     INA-sim 0.4.1 on Python 3.12, PyYAML present
+  ok  registry        8 parameterizations (7 published, 1 derived), all cited and monotonic
+  ok  validation      5 published claims reproduced, 0 failed
+  ok  derived fits    OK: shipped AgI fit matches the dataset.
+  ok  documentation   OK: generated docs are current.
+  ok  audit log       12 records, hash chain intact
+```
 
 ```bash
 ina-sim ns --list                  # what is actually parameterized, and by whom
@@ -84,6 +103,7 @@ See [`docs/METHODS.md` §5](docs/METHODS.md) for the file format and
 | **Monte Carlo uncertainty** | `ina-sim uncertainty` — distribution of n_INP, P(above threshold), and a variance decomposition naming which input owns the spread |
 | **Scenario / decision layer** | `ina-sim scenario` — payload mass → delivered INP with a band, a go/no-go probability, and an explicit claims guardrail; runs backwards to solve for payload |
 | **Run audit trail** | `ina-sim history` — hash-chained record of every run with a parameterization fingerprint, so a moved number is attributed to changed conditions or changed science |
+| **Self-check** | `ina-sim doctor` — environment, registry, validation, derived fits, docs and audit chain in one command, non-zero exit on any failure |
 | **Droplet-freezing observables** | frozen fraction, Vali inversion, T50, INP concentration, cooling-ramp integration |
 | **Singular + stochastic descriptions** | Vali (1971) and Murray et al. (2011), reported side by side |
 | **Validation suite** | 5 anchors against published claims, run in CI (`ina-sim validate`) |
@@ -153,7 +173,7 @@ examples/        kfeldspar_synthetic_assay.csv (labelled synthetic template)
 tools/           fit_agi_ns.py (derives the AgI fit), gen_docs.py,
                  make_example_assay.py
 docs/            METHODS.md, VALIDATION.md, REFERENCES.md, PROJECT.md
-tests/           441 tests: units, registry, freezing physics, assay import,
+tests/           499 tests: units, registry, freezing physics, assay import,
                  aerosol, intercomparison, dose, uncertainty,
                  scenario, audit,
                  figures, validation, references

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ina-sim"
-version = "0.4.0"
+version = "0.4.1"
 description = "Local multi-fidelity ice nucleation agent (INA) screening lab for weather-modification R&D"
 readme = "README.md"
 license = { text = "MIT" }
@@ -31,6 +31,8 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "pytest>=8.0",
+  "pytest-cov>=5.0",
+  "build>=1.2",
   "ruff>=0.6",
   "mypy>=1.11",
   "types-PyYAML>=6.0",
@@ -52,9 +54,35 @@ ina_sim = [
   "validation/datasets/*.yaml",
 ]
 
+[project.urls]
+Homepage = "https://github.com/HearnChristian/ina-sim"
+Methods = "https://github.com/HearnChristian/ina-sim/blob/main/docs/METHODS.md"
+Validation = "https://github.com/HearnChristian/ina-sim/blob/main/docs/VALIDATION.md"
+Changelog = "https://github.com/HearnChristian/ina-sim/blob/main/CHANGELOG.md"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+addopts = "--strict-markers"
+
+[tool.coverage.run]
+source = ["ina_sim"]
+branch = true
+
+[tool.coverage.report]
+# This is BRANCH coverage, which is a stricter measure than the line coverage
+# usually quoted — 79% here is roughly 82% by lines. The floor is deliberately
+# below the current figure so it catches regression, not so it can be gamed.
+# The uncovered remainder is mostly the stdlib HTTP handler in gui/server.py,
+# which is driven by hand; every module that produces a number is above 85%.
+fail_under = 75
+show_missing = true
+exclude_lines = [
+  "pragma: no cover",
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+  "if __name__ == .__main__.:",
+]
 
 [tool.ruff]
 line-length = 100

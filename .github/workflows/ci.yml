@@ -22,12 +22,36 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
-      - name: Pytest
-        run: pytest -q
+      - name: Pytest with coverage
+        run: pytest -q --cov=ina_sim --cov-report=term-missing
       - name: Ruff
         run: ruff check src tests tools
       - name: Mypy
         run: mypy
+      - name: Self-check
+        run: ina-sim doctor
+
+  # Prove it is a package someone else can install, not just a checkout that
+  # happens to run on this machine.
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build wheel and sdist
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build
+      - name: Install the wheel into a clean environment and run it
+        run: |
+          python -m venv /tmp/fresh
+          /tmp/fresh/bin/pip install --quiet dist/*.whl
+          /tmp/fresh/bin/ina-sim --version
+          /tmp/fresh/bin/ina-sim ns --list
+          /tmp/fresh/bin/ina-sim validate
+          /tmp/fresh/bin/ina-sim doctor
 
   # The empirical layer has to defend itself on every push: the anchors are
   # re-derived from the shipped parameterizations, and the AgI fit is
