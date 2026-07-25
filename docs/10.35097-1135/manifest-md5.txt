@@ -1,0 +1,5 @@
+ea9e1ec73d290b2ad3953f34206a1d3c  data/readme.txt
+8b5c4ff2e4748838696aa13005a64de8  data/technical-md/dataset.tech_md.xml
+355f1abf1783bdde718565a2cfb9caf5  data/dataset/ns_data_desertdust.xlsx
+fc8e5d2a5636313751aef3339626e462  data/descriptive-md/dataset.desc_md.xml
+7a35866135c455b74dc57aa4ecdb1803  data/dataset/ns_data_soot.xlsx

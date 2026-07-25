@@ -420,7 +420,60 @@ They are static on purpose: they are not about one parcel of air, they are the
 evidence the tool rests on. Every curve stops where its source's fitted range
 stops.
 
-## 10. Rules the code enforces
+## 10. Monte Carlo uncertainty
+
+```bash
+ina-sim uncertainty --id desert_dust_niemand2012 --mode 1.0:0.8:1.9 \
+  --temp -20 --threshold 1.0
+```
+
+A point estimate of an INP concentration cannot support a decision. The inputs
+are uncertain by very different amounts and the output spans decades, so the
+answerable question is not *what is n_INP* but *what is the chance n_INP clears
+the threshold I care about*.
+
+Three things are sampled, each with the distribution its error actually has:
+
+| input | distribution | why |
+|---|---|---|
+| ns(T) | log-normal, σ in decades | the literature states ns uncertainty in decades; σ = 0.8 is a factor of ~6 each way |
+| temperature | normal, σ in K | ns moves 0.2–0.4 decades per kelvin, so ±0.5 K is already a factor of ~1.5 |
+| aerosol number, median diameter | log-normal, relative σ | positive quantities with multiplicative instrument error |
+
+Runs are **deterministic given the seed**, and the seed is reported, so a
+sampled result is quotable and reproducible.
+
+**Variance decomposition.** The output that changes behaviour: each input is
+re-run frozen at its central value under common random numbers, and the drop in
+the variance of log₁₀(n_INP) is that input's share. For the standard dust case
+the answer is stark —
+
+```
+ns(T) parameterization      96.4% ███████████████████████████████████████
+aerosol number               1.3% █
+temperature                  0.9%
+median diameter              0.8%
+```
+
+— which says that buying a better optical counter would not move this
+prediction at all. The parameterization is the whole problem. That is worth
+knowing *before* spending money on instruments.
+
+**What it cannot do**, stated on every run:
+
+- **Structural error is not represented.** Sampling a fit's stated uncertainty
+  says nothing about whether the fit is right, whether the nucleation mode is
+  right, or whether the material was ever measured. This is usually the larger
+  error and it has no distribution to sample.
+- **Inputs are drawn independently.** A documented assumption, not a finding.
+- **An assumed σ propagates as if it were real.** Where a source states no
+  uncertainty the documented substitute is used and the whole result is flagged
+  `sigma_assumed`.
+- **Draws outside the fitted temperature range are discarded, not
+  extrapolated.** The discarded fraction is reported, and a run near the edge of
+  a fit warns that the distribution is conditioned on being in range.
+
+## 11. Rules the code enforces
 
 **No silent extrapolation.** Outside the temperature range its source fitted, a
 parameterization returns nothing. `--extrapolate` overrides this and stamps the
@@ -445,7 +498,7 @@ is `none`, and it says so in the CLI output.
 
 ---
 
-## 11. What this still is not
+## 12. What this still is not
 
 - Not a calibration to any specific field campaign or seeding operation.
 - Not a source of operational rates, dosages or precipitation forecasts.
@@ -456,7 +509,7 @@ is `none`, and it says so in the CLI output.
   the literature disagrees. The gaps are visible on purpose
   (`ina-sim ns --list`, `ina-sim compare`).
 
-## 12. References
+## 13. References
 
 `ina-sim refs` prints the bibliography with DOIs and how each source was used.
 See also [REFERENCES.md](REFERENCES.md).

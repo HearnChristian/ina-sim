@@ -57,3 +57,10 @@ jobs:
         run: ina-sim rank --temp -20
       - name: Reference figures build offline
         run: ina-sim figures --out /tmp/reference-figures.html
+      - name: Monte Carlo is reproducible
+        run: |
+          ina-sim uncertainty --id desert_dust_niemand2012 --mode 1.0:0.8:1.9 \
+            --temp -20 --samples 500 --json > /tmp/mc1.json
+          ina-sim uncertainty --id desert_dust_niemand2012 --mode 1.0:0.8:1.9 \
+            --temp -20 --samples 500 --json > /tmp/mc2.json
+          diff /tmp/mc1.json /tmp/mc2.json

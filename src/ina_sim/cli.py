@@ -284,6 +284,48 @@ def _build_parser() -> argparse.ArgumentParser:
         "--open", action="store_true", dest="open_browser", help="Open in a browser"
     )
 
+    unc = sub.add_parser(
+        "uncertainty",
+        help="Monte Carlo the INP concentration and its dominant error source",
+        description=(
+            "Sample n_INP with uncertain ns(T), temperature and aerosol, and "
+            "report the distribution, the probability of clearing a threshold, "
+            "and which input is responsible for the spread. Deterministic for a "
+            "given seed."
+        ),
+    )
+    unc.add_argument("--id", dest="param_id", required=True, help="Parameterization id")
+    unc.add_argument("--temp", type=float, default=-20.0, help="Temperature °C")
+    unc.add_argument(
+        "--mode",
+        required=True,
+        help="Aerosol mode N:Dg:sigma_g (number per cm³ : median µm : σ_g)",
+    )
+    unc.add_argument(
+        "--temp-sigma", type=float, default=0.5, help="Temperature 1σ in K (default 0.5)"
+    )
+    unc.add_argument(
+        "--number-sigma",
+        type=float,
+        default=0.30,
+        help="Relative 1σ on number concentration (default 0.30)",
+    )
+    unc.add_argument(
+        "--diameter-sigma",
+        type=float,
+        default=0.10,
+        help="Relative 1σ on median diameter (default 0.10)",
+    )
+    unc.add_argument(
+        "--threshold",
+        type=float,
+        default=None,
+        help="Report the probability of exceeding this INP concentration (per litre)",
+    )
+    unc.add_argument("--samples", type=int, default=4000, help="Monte Carlo samples")
+    unc.add_argument("--seed", type=int, default=20260725, help="Random seed")
+    unc.add_argument("--json", action="store_true", help="JSON output")
+
     val = sub.add_parser(
         "validate",
         help="Check this build against published claims",
@@ -1115,6 +1157,91 @@ def _cmd_figures(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_uncertainty(args: argparse.Namespace) -> int:
+    from ina_sim.physics.aerosol import parse_mode
+    from ina_sim.physics.ns import get_parameterization
+    from ina_sim.physics.uncertainty import propagate_inp
+
+    try:
+        param = get_parameterization(args.param_id)
+        mode = parse_mode(args.mode)
+        result = propagate_inp(
+            param,
+            temperature_c=args.temp,
+            number_per_cm3=mode.number_per_cm3,
+            median_diameter_um=mode.median_diameter_um,
+            geometric_sd=mode.geometric_sd,
+            temperature_sigma_k=args.temp_sigma,
+            number_relative_sigma=args.number_sigma,
+            diameter_relative_sigma=args.diameter_sigma,
+            threshold_per_litre=args.threshold,
+            samples=args.samples,
+            seed=args.seed,
+        )
+    except (KeyError, ValueError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    if args.json:
+        print(json.dumps(result.as_dict(), indent=2))
+        return 0
+
+    body = result.as_dict()
+    dist = body["n_inp_per_litre"]
+    print(f"{param.material}  [{param.id}]  {result.citation}")
+    print(
+        f"  aerosol:   {mode.number_per_cm3:g} cm⁻³, D_g {mode.median_diameter_um:g} µm, "
+        f"σ_g {mode.geometric_sd:g}"
+    )
+    print(
+        f"  uncertain: T ±{args.temp_sigma:g} K, number ±{args.number_sigma:.0%}, "
+        f"diameter ±{args.diameter_sigma:.0%}, "
+        f"ns ±{result.ns_sigma_used:g} decades"
+        + (" (assumed, not stated by the source)" if result.sigma_assumed else "")
+    )
+    print(
+        f"  sampling:  {result.samples_usable}/{result.samples_requested} usable, "
+        f"seed {result.seed}"
+    )
+    print()
+    print(f"n_INP per litre at T = {args.temp:g} °C")
+    print(f"{'  5th':>10} {'16th':>10} {'median':>10} {'84th':>10} {'95th':>10}")
+    print("-" * 54)
+    print(
+        f"{dist['p05']:>10.3g} {dist['p16']:>10.3g} {dist['p50']:>10.3g} "
+        f"{dist['p84']:>10.3g} {dist['p95']:>10.3g}"
+    )
+    print()
+    print(
+        f"The central 90% of outcomes span {dist['spread_decades_90pct']:.2f} "
+        "orders of magnitude."
+    )
+    if args.threshold is not None:
+        prob = body["probability_above_threshold"]
+        print(
+            f"P(n_INP > {args.threshold:g} /L) = {prob:.1%}"
+            + ("  — better than a coin flip" if prob > 0.5 else "")
+        )
+    print()
+    print("Where the spread comes from:")
+    for name, share in body["variance_share"].items():
+        bar = "█" * int(round(share * 40))
+        print(f"  {name:<26} {share:>6.1%} {bar}")
+    dominant = next(iter(body["variance_share"]), None)
+    if dominant:
+        print()
+        print(
+            f"  Reducing any other uncertainty will barely move this answer; "
+            f"{dominant} is what to improve."
+            if body["variance_share"][dominant] > 0.6
+            else "  No single input dominates; improving any of them helps."
+        )
+    print()
+    for note in result.notes:
+        print(f"  - {note}")
+    return 0
+
+
 def _cmd_validate(args: argparse.Namespace) -> int:
     from ina_sim.validation.runner import format_report, run_validation
 
@@ -1188,6 +1315,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_rank(args)
     if args.cmd == "figures":
         return _cmd_figures(args)
+    if args.cmd == "uncertainty":
+        return _cmd_uncertainty(args)
     if args.cmd == "freeze":
         return _cmd_freeze(args)
     if args.cmd == "validate":

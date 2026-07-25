@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ns2:radarDataset xmlns="http://radar-service.eu/schemas/descriptive/radar/v09/radar-elements" xmlns:ns2="http://radar-service.eu/schemas/descriptive/radar/v09/radar-dataset">
+    <identifier identifierType="DOI">10.35097/1135</identifier>
+    <alternateIdentifiers>
+        <alternateIdentifier alternateIdentifierType="KITopen-DOI">10.5445/IR/1000086261</alternateIdentifier>
+    </alternateIdentifiers>
+    <creators>
+        <creator>
+            <creatorName>Ullrich, Romy</creatorName>
+            <givenName>Romy</givenName>
+            <familyName>Ullrich</familyName>
+            <nameIdentifier schemeURI="http://orcid.org/" nameIdentifierScheme="ORCID">0000-0002-8162-4354</nameIdentifier>
+        </creator>
+    </creators>
+    <title>INAS density values for desert dust and soot</title>
+    <descriptions>
+        <description descriptionType="TechnicalRemarks">(geometric) INAS density as a function of temperature and ice saturation ratio in m-2 as shown in Figures 2 and 4 in Ullrich et al. (2017)</description>
+    </descriptions>
+    <publishers>
+        <publisher nameIdentifierScheme="ROR" schemeURI="https://ror.org/" nameIdentifier="https://ror.org/04t3en479">Karlsruhe Institute of Technology</publisher>
+    </publishers>
+    <productionYear>2017</productionYear>
+    <publicationYear>2023</publicationYear>
+    <subjectAreas>
+        <subjectArea>
+            <controlledSubjectAreaName>Geological Science</controlledSubjectAreaName>
+        </subjectArea>
+    </subjectAreas>
+    <resource resourceType="Dataset"></resource>
+    <rights>
+        <controlledRights>CC BY 4.0 Attribution</controlledRights>
+    </rights>
+    <rightsHolders>
+        <rightsHolder nameIdentifierScheme="ORCID" schemeURI="https://orcid.org/" nameIdentifier="0000-0002-8162-4354">Ullrich, Romy</rightsHolder>
+    </rightsHolders>
+</ns2:radarDataset>

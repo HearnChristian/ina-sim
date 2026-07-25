@@ -347,6 +347,42 @@ def fig_assay_dynamic_range() -> dict[str, Any]:
     return figure_block(fig, "Vali (1971) singular inversion")
 
 
+def fig_exceedance() -> dict[str, Any]:
+    """The decision-shaped plot: probability of clearing a threshold."""
+    from ina_sim.physics.uncertainty import propagate_inp
+
+    param = get_parameterization("desert_dust_niemand2012")
+    result = propagate_inp(
+        param,
+        temperature_c=-20.0,
+        number_per_cm3=1.0,
+        median_diameter_um=0.8,
+        geometric_sd=1.9,
+        samples=4000,
+    )
+    thresholds = [10 ** (-3.0 + 0.1 * i) for i in range(61)]
+    probs = [result.exceedance(t) for t in thresholds]
+    fig = Figure(
+        title="Probability of exceeding an INP concentration (standard dust case)",
+        x=Axis("threshold n_INP (per litre)", scale="log10"),
+        y=Axis("probability of exceeding", lo=0.0, hi=1.0),
+        series=[
+            Series(label="P(n_INP > x)", xs=thresholds, ys=probs, colour=PALETTE[0]),
+        ],
+    )
+    fig.caption = (
+        "One aerosol mode (1 cm⁻³ at 0.8 µm, σ_g 1.9) at −20 °C, sampled 4000 "
+        "times with the parameterization's own uncertainty, ±0.5 K on "
+        "temperature, ±30% on number and ±10% on diameter. The curve is shallow "
+        "because the answer spans three orders of magnitude, which is the "
+        "honest state of this prediction rather than a defect of the sampling. "
+        "Roughly 96% of that spread comes from the n_s uncertainty alone — "
+        "`ina-sim uncertainty` reports the breakdown, and it is the number that "
+        "tells you which measurement is worth improving."
+    )
+    return figure_block(fig, "Niemand et al. (2012); sampling seeded and reproducible")
+
+
 def build_figures() -> list[dict[str, Any]]:
     return [
         fig_ns_by_basis("BET"),
@@ -357,4 +393,5 @@ def build_figures() -> list[dict[str, Any]]:
         fig_inp_concentration(),
         fig_homogeneous(),
         fig_assay_dynamic_range(),
+        fig_exceedance(),
     ]

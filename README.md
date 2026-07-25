@@ -28,7 +28,8 @@ ina-sim assay my_run.csv           # YOUR droplet-freezing data -> ns(T) + compa
 ina-sim aerosol --id desert_dust_niemand2012 --mode 1:0.8:1.9 --temp -20
 ina-sim compare --range=-35:-10:5  # how far apart are the published fits?
 ina-sim rank --temp -20            # every measured material, heuristic layer off
-ina-sim figures                    # 8 static reference plots, self-contained HTML
+ina-sim figures                    # 9 static reference plots, self-contained HTML
+ina-sim uncertainty --id desert_dust_niemand2012 --mode 1.0:0.8:1.9 --threshold 1.0
 ina-sim freeze --id k_feldspar_harrison2019 --diameter 1 --curve
 ina-sim validate                   # does this build still reproduce its sources?
 ina-sim refs                       # the bibliography behind every number
@@ -77,7 +78,8 @@ See [`docs/METHODS.md` §5](docs/METHODS.md) for the file format and
 | **Intercomparison** | fits grouped by quantity + area basis; range across materials separated from genuine same-material conflict |
 | **Empirical ranking** | `ina-sim rank` — every measured material ordered in log₁₀, no heuristic layer, no library entry needed |
 | **Size and dose** | activation probability `1 − exp(−ns·πd²)` and INP concentration `N · P_act` — the particle-size and seeding-density inputs now change the answer |
-| **Reference figures** | 8 static SVG plots built from the registry (`ina-sim figures`, or GUI ▸ Physics ▸ Reference figures) |
+| **Reference figures** | 9 static SVG plots built from the registry (`ina-sim figures`, or GUI ▸ Physics ▸ Reference figures) |
+| **Monte Carlo uncertainty** | `ina-sim uncertainty` — distribution of n_INP, P(above threshold), and a variance decomposition naming which input owns the spread |
 | **Droplet-freezing observables** | frozen fraction, Vali inversion, T50, INP concentration, cooling-ramp integration |
 | **Singular + stochastic descriptions** | Vali (1971) and Murray et al. (2011), reported side by side |
 | **Validation suite** | 5 anchors against published claims, run in CI (`ina-sim validate`) |
@@ -133,6 +135,7 @@ src/ina_sim/
                  aerosol.py   lognormal modes, Hatch-Choate, INP integral
                  intercompare.py  grouping + spread vs real disagreement
                  dose.py      activation probability, INP concentration
+                 uncertainty.py  Monte Carlo + variance decomposition
   figures/       svg.py (stdlib plotting) + reference.py + page.py
   assay/         ingest.py (CSV/JSON + 3 surface-area routes)
                  spectrum.py  Vali inversion, Wilson bands, registry comparison
@@ -144,8 +147,8 @@ examples/        kfeldspar_synthetic_assay.csv (labelled synthetic template)
 tools/           fit_agi_ns.py (derives the AgI fit), gen_docs.py,
                  make_example_assay.py
 docs/            METHODS.md, VALIDATION.md, REFERENCES.md, PROJECT.md
-tests/           376 tests: units, registry, freezing physics, assay import,
-                 aerosol, intercomparison, dose,
+tests/           404 tests: units, registry, freezing physics, assay import,
+                 aerosol, intercomparison, dose, uncertainty,
                  figures, validation, references
 ```
 
