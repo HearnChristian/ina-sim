@@ -265,6 +265,25 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     rank_p.add_argument("--json", action="store_true", help="JSON output")
 
+    figs = sub.add_parser(
+        "figures",
+        help="Write the static reference figure page",
+        description=(
+            "Generate a self-contained HTML page of reference figures drawn "
+            "from the parameterization registry. Offline: inline SVG, no "
+            "scripts, no external assets."
+        ),
+    )
+    figs.add_argument(
+        "--out",
+        type=Path,
+        default=Path("reference-figures.html"),
+        help="Output path (default reference-figures.html)",
+    )
+    figs.add_argument(
+        "--open", action="store_true", dest="open_browser", help="Open in a browser"
+    )
+
     val = sub.add_parser(
         "validate",
         help="Check this build against published claims",
@@ -1082,6 +1101,20 @@ def _cmd_rank(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_figures(args: argparse.Namespace) -> int:
+    from ina_sim.figures import build_figures, render_page
+
+    html = render_page(build_figures())
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(html, encoding="utf-8")
+    print(f"Wrote {args.out}  ({len(html) // 1024} kB, 8 figures, self-contained)")
+    if args.open_browser:
+        import webbrowser
+
+        webbrowser.open(args.out.resolve().as_uri())
+    return 0
+
+
 def _cmd_validate(args: argparse.Namespace) -> int:
     from ina_sim.validation.runner import format_report, run_validation
 
@@ -1153,6 +1186,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_compare(args)
     if args.cmd == "rank":
         return _cmd_rank(args)
+    if args.cmd == "figures":
+        return _cmd_figures(args)
     if args.cmd == "freeze":
         return _cmd_freeze(args)
     if args.cmd == "validate":

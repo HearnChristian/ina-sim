@@ -495,6 +495,8 @@
         <div class="menu" data-menu="physics">
           <button type="button">Physics</button>
           <div class="menu-panel">
+            <button type="button" data-cmd="reference-figures">Reference figures…</button>
+            <div class="sep"></div>
             <button type="button" data-cmd="upload-dialog">Upload molecule…</button>
             <div class="sep"></div>
             <button type="button" data-cmd="about-physics">Model notes…</button>
@@ -1439,6 +1441,13 @@
         case "run": runScreen(); break;
         case "sweep": runSweep(); break;
         case "upload-dialog": showUploadDialog(); break;
+        // Static reference figures: what the literature says, independent of
+        // the current slider state. Opens in its own tab so the screen keeps
+        // whatever run is on it.
+        case "reference-figures":
+          window.open("/reference", "_blank", "noopener");
+          setStatus("Reference figures opened in a new tab", false);
+          break;
         case "about-physics":
           showModal("Model notes", `
             <p><b>L0 + L1 activity tables + educational CNT</b></p>

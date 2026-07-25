@@ -11,6 +11,7 @@ from ina_sim.models.results import ScreenResult
 from ina_sim.physics.activity import uncertainty_fraction
 from ina_sim.physics.atmosphere import atmosphere_state, total_water_vapor_kg
 from ina_sim.physics.cnt import cnt_estimate
+from ina_sim.physics.dose import activation
 from ina_sim.physics.efficiency import agent_efficiency, condensable_water_kg
 from ina_sim.physics.evidence import EVIDENCE_MEASURED, EVIDENCE_SOLUTE, evidence_for
 
@@ -66,6 +67,20 @@ def screen_one(candidate: Candidate, conditions: Conditions) -> ScreenResult:
         conditions.temperature_c,
         particle_diameter_um=conditions.particle_diameter_um,
         mode=conditions.mode,
+    )
+
+    # Particle size and dose. Uses the measured ns where one exists, otherwise
+    # reads the heuristic score as an activation probability at the reference
+    # diameter (see physics/dose.py). At the default 1 µm this reproduces the
+    # score exactly; away from it the d^2 surface-area scaling applies.
+    ns_block = evidence.get("ns") or {}
+    act = activation(
+        temperature_c=conditions.temperature_c,
+        score=eff.overall,
+        particle_diameter_um=conditions.particle_diameter_um,
+        seeding_density_per_l=conditions.seeding_density_per_l,
+        measured_ns_m2=ns_block.get("value"),
+        citation=ns_block.get("citation"),
     )
 
     warnings: list[str] = []
@@ -140,6 +155,7 @@ def screen_one(candidate: Candidate, conditions: Conditions) -> ScreenResult:
             "track": conditions.track,
             "cnt": cnt.as_dict(),
             "evidence": evidence,
+            "activation": act.as_dict(),
         },
     )
 

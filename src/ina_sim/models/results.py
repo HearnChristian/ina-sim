@@ -62,5 +62,14 @@ class ScreenResult:
             "ns_citation": (
                 ((self.details.get("evidence") or {}).get("ns") or {}).get("citation")
             ),
+            # Size and dose: these respond to the particle diameter and seeding
+            # density inputs, which the relative score deliberately does not.
+            "activation": self.details.get("activation"),
+            "activation_probability": (
+                (self.details.get("activation") or {}).get("activation_probability")
+            ),
+            "n_inp_per_litre": (
+                (self.details.get("activation") or {}).get("n_inp_per_litre")
+            ),
             "warnings": "; ".join(self.warnings) if self.warnings else "",
         }

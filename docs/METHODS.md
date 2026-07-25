@@ -363,7 +363,64 @@ The remaining honest gaps, in order of what would help most:
 3. **Kaolinite is a rate coefficient valid only over 236–245 K**, so it returns
    nothing at mixed-phase temperatures where it is most often used.
 
-## 9. Rules the code enforces
+## 9. What the screening inputs do
+
+```bash
+ina-sim figures --out reference-figures.html   # or Physics ▸ Reference figures in the GUI
+```
+
+A control that changes nothing is not automatically a defect. Two of the
+screening inputs are inert because the physics says so, and two were inert
+because the model was thin. The second pair is now fixed.
+
+| input | effect | why |
+|---|---|---|
+| temperature | strong | ns(T) rises ~0.2–0.4 decades per kelvin |
+| **particle diameter** | **strong (new)** | `P_act = 1 − exp(−ns·πd²)`, so area and effect scale as d² |
+| **seeding density** | **linear on n_INP (new)** | `n_INP = N · P_act`, uncapped |
+| relative humidity | none in immersion, strong in deposition | an immersed particle is already in liquid water |
+| pressure | none on nucleation | sets the parcel's water inventory instead |
+
+**The size fix.** For materials with a parameterization the activation
+probability uses the measured ns(T). For the rest there is no ns, so the
+heuristic score is *reinterpreted* as the activation probability of a 1 µm
+particle:
+
+```
+ns_eff(T) = -ln(1 - η(T)) / (π·d_ref²)                    (9)
+```
+
+This is a convention, labelled as one wherever it appears. Its virtue is
+exactness at the reference: at d = 1 µm the activation probability equals the
+score the tool has always reported, so nothing that already worked moves, while
+away from 1 µm the scaling is the physical d² instead of nothing.
+
+**What is deliberately unchanged.** The relative score itself stays
+size-independent, so rankings and the demo table cannot shift when the diameter
+slider moves. The score also keeps its legacy loading factor `min(1, N/50)`,
+which saturates for no physical reason; it is retained because "zero dose gives
+zero score" is a tested property and because it multiplies every candidate
+equally and so cannot reorder anything. **Read n_INP, not the score, for
+anything dose related.**
+
+**Overseeding is not modelled.** Real seeding does saturate — too many ice
+crystals compete for the same vapour and none grows to precipitation size — but
+that is a vapour budget and growth problem, not a nucleation one.
+
+### Reference figures
+
+Eight static plots generated from the registry itself, so they cannot drift from
+the numbers the tool uses: ns(T) per area basis with uncertainty bands, the AgI
+measurement scatter against its fit, T₅₀ against particle diameter, predicted
+frozen fraction, INP concentration from a dust loading (exact integral vs the
+`ns × S_tot` shortcut), homogeneous freezing by cooling rate, and the resolvable
+n_s window against droplet count. Inline SVG, no scripts, no external assets.
+
+They are static on purpose: they are not about one parcel of air, they are the
+evidence the tool rests on. Every curve stops where its source's fitted range
+stops.
+
+## 10. Rules the code enforces
 
 **No silent extrapolation.** Outside the temperature range its source fitted, a
 parameterization returns nothing. `--extrapolate` overrides this and stamps the
@@ -388,7 +445,7 @@ is `none`, and it says so in the CLI output.
 
 ---
 
-## 10. What this still is not
+## 11. What this still is not
 
 - Not a calibration to any specific field campaign or seeding operation.
 - Not a source of operational rates, dosages or precipitation forecasts.
@@ -399,7 +456,7 @@ is `none`, and it says so in the CLI output.
   the literature disagrees. The gaps are visible on purpose
   (`ina-sim ns --list`, `ina-sim compare`).
 
-## 11. References
+## 12. References
 
 `ina-sim refs` prints the bibliography with DOIs and how each source was used.
 See also [REFERENCES.md](REFERENCES.md).

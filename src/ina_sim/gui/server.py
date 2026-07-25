@@ -345,6 +345,9 @@ class InaSimHandler(BaseHTTPRequestHandler):
         if path in ("/", "/index.html"):
             self._serve_static("index.html")
             return
+        if path in ("/reference", "/reference/", "/figures"):
+            self._serve_reference_figures()
+            return
         if path == "/api/health":
             _ensure_persisted_loaded()
             self._send_json(
@@ -467,6 +470,14 @@ class InaSimHandler(BaseHTTPRequestHandler):
             return
 
         self._send_json(404, {"error": "not found", "path": path})
+
+    def _serve_reference_figures(self) -> None:
+        """Static reference figures, rebuilt from the registry on each request
+        so the page can never disagree with the numbers the tool is using."""
+        from ina_sim.figures import build_figures, render_page
+
+        body = render_page(build_figures()).encode("utf-8")
+        self._send(200, body, "text/html; charset=utf-8")
 
     def _dispatch_post(self) -> None:
         parsed = urllib.parse.urlparse(self.path)

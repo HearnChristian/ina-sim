@@ -55,3 +55,5 @@ jobs:
         run: ina-sim compare --range=-35:-10:5
       - name: Empirical ranking covers every parameterization
         run: ina-sim rank --temp -20
+      - name: Reference figures build offline
+        run: ina-sim figures --out /tmp/reference-figures.html
