@@ -243,3 +243,17 @@ references:
     open_access: false
     access: verbatim
     note: "Saturation vapour pressure formulation used by physics/atmosphere.py."
+
+  seinfeld2016:
+    short: "Seinfeld and Pandis (2016)"
+    authors: "Seinfeld, J. H., Pandis, S. N."
+    year: 2016
+    title: "Atmospheric Chemistry and Physics: From Air Pollution to Climate Change, 3rd edition"
+    publisher: "John Wiley and Sons"
+    open_access: false
+    access: textbook
+    note: >-
+      Standard reference for the lognormal aerosol size distribution and its
+      Hatch-Choate moment relations, used by physics/aerosol.py to get total
+      surface area per unit air volume from a set of modes.
+

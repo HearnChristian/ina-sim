@@ -256,7 +256,77 @@ labelled synthetic — simulated from the K-feldspar fit by
 it recovers the fit it came from (bias < 0.3 decades) while rejecting quartz and
 plagioclase.
 
-## 6. Rules the code enforces
+## 6. Polydisperse aerosol and INP concentration
+
+```bash
+ina-sim aerosol --id desert_dust_niemand2012 --temp -20 \
+  --mode 1.0:0.8:1.9:accumulation --mode 0.01:4:2.2:coarse
+```
+
+Elsewhere a particle population is monodisperse spheres, which is fine for one
+material at one size and wrong for atmospheric work. A lognormal mode with count
+median diameter `D_g` and geometric standard deviation `σ_g` has the
+Hatch-Choate moments (Seinfeld and Pandis, 2016):
+
+```
+<D^k> = D_g^k exp(k² ln²σ_g / 2)                          (5)
+S_tot = N π D_g² exp(2 ln²σ_g)                            (6)
+V_tot = N (π/6) D_g³ exp(4.5 ln²σ_g)                      (7)
+```
+
+**INP concentration is not `ns · S_tot`.** That linearisation counts several
+active sites on one particle as several INP and can exceed the number of
+particles present. The reported quantity integrates the per-particle activation
+probability over the distribution:
+
+```
+n_INP = ∫ n(D) [1 - exp(-ns π D²)] dD                     (8)
+```
+
+which reduces to `ns · S_tot` only when `ns·A ≪ 1`. Both are printed with their
+ratio, so the regime is visible rather than assumed. Integration is uniform in
+`ln D` over ±5 `ln σ_g`, midpoint rule; the binned surface area reproduces the
+analytic moment (6) to better than 0.2%.
+
+**Size decides, not number.** Surface area goes as `D²`, so a coarse mode with
+a thousand times fewer particles can supply comparable INP. The output reports
+`d50` — the median diameter of the particles actually supplying the INP — and
+the share coming from particles above 1 µm.
+
+**Truncation.** Instruments count over a finite size range, and a
+parameterization built on "particles larger than 0.5 µm" is not comparable to an
+untruncated integral. `--d-min` / `--d-max` make that explicit and the result is
+labelled truncated.
+
+## 7. Intercomparison: how much do the fits disagree?
+
+```bash
+ina-sim compare --range=-35:-10:5
+ina-sim compare --temp -20 --basis BET
+```
+
+Fits are grouped by `(quantity, surface-area basis)`. Fits in different groups
+are not comparable at all — a BET ns, a geometric ns and a rate coefficient are
+three different quantities wearing similar symbols.
+
+Within a group two numbers are reported, and the distinction between them is the
+entire point:
+
+- **range** — max − min across the row. For fits of *different* materials this
+  is a real difference between substances, not a disagreement. K-feldspar
+  sitting four decades above plagioclase is mineralogy.
+- **CONFLICT** — flagged only when two fits share a `material_key` *and* their
+  σ bands fail to overlap (`gap > √(σ_a² + σ_b²)`). That is the literature
+  actually contradicting itself.
+
+This build contains **no two fits of the same material**, so it reports zero
+conflicts and says so: the disagreement question is not answerable until a
+second fit for an existing material is added. Adding one (Atkinson et al. 2013
+alongside Harrison et al. 2019 for K-feldspar, or Ullrich et al. 2017 alongside
+Niemand et al. 2012 for dust) is the obvious next step, and it will light this
+view up without any code change.
+
+## 8. Rules the code enforces
 
 **No silent extrapolation.** Outside the temperature range its source fitted, a
 parameterization returns nothing. `--extrapolate` overrides this and stamps the
@@ -281,16 +351,18 @@ is `none`, and it says so in the CLI output.
 
 ---
 
-## 7. What this still is not
+## 9. What this still is not
 
 - Not a calibration to any specific field campaign or seeding operation.
 - Not a source of operational rates, dosages or precipitation forecasts.
 - Not a substitute for a droplet-freezing assay: it predicts what one would
   measure, which is a claim that can be checked, not a measurement.
-- Not complete: eight parameterizations covering four library candidates. The
-  gaps are visible on purpose (`ina-sim ns --list`).
+- Not complete: eight parameterizations covering four library candidates, and
+  no two of them describe the same material, so it cannot yet tell you where
+  the literature disagrees. The gaps are visible on purpose
+  (`ina-sim ns --list`, `ina-sim compare`).
 
-## 8. References
+## 10. References
 
 `ina-sim refs` prints the bibliography with DOIs and how each source was used.
 See also [REFERENCES.md](REFERENCES.md).

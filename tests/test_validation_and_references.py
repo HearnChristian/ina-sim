@@ -81,7 +81,7 @@ def test_no_orphan_references():
     used |= {a["reference"] for a in load_anchors()}
     # Referenced from code rather than data files.
     used |= {"vali1971", "vali2015", "hoose2012", "atkinson2013", "koop2000",
-             "crc_handbook", "alduchov1996", "hiranuma2015"}
+             "crc_handbook", "alduchov1996", "hiranuma2015", "seinfeld2016"}
     orphans = set(load_references()) - used
     assert not orphans, f"unused references: {sorted(orphans)}"
 

@@ -188,6 +188,65 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     asy.add_argument("--json", action="store_true", help="JSON output")
 
+    aer = sub.add_parser(
+        "aerosol",
+        help="INP concentration for a polydisperse aerosol population",
+        description=(
+            "Integrate ns(T) over a lognormal size distribution to get an ice "
+            "nucleating particle concentration, using the exact per-particle "
+            "activation probability rather than the linear ns x surface area."
+        ),
+        epilog=(
+            "Modes are number_per_cm3:median_diameter_um:sigma_g[:name], "
+            "repeatable, e.g. --mode 1.0:0.8:1.9:accumulation --mode 0.01:4:2.2:coarse"
+        ),
+    )
+    aer.add_argument("--id", dest="param_id", required=True, help="Parameterization id")
+    aer.add_argument(
+        "--mode",
+        action="append",
+        required=True,
+        dest="modes",
+        help="Lognormal mode N:Dg:sigma[:name] (repeatable)",
+    )
+    aer.add_argument("--temp", type=float, default=-20.0, help="Temperature °C")
+    aer.add_argument("--d-min", type=float, default=None, help="Truncate below this µm")
+    aer.add_argument("--d-max", type=float, default=None, help="Truncate above this µm")
+    aer.add_argument(
+        "--curve", action="store_true", help="Sweep the parameterization's range"
+    )
+    aer.add_argument("--step", type=float, default=2.0, help="Curve step °C")
+    aer.add_argument("--json", action="store_true", help="JSON output")
+
+    cmp_p = sub.add_parser(
+        "compare",
+        help="How much do the published fits disagree?",
+        description=(
+            "Place every comparable parameterization on one temperature grid "
+            "and report the spread. Fits of different quantities or on "
+            "different surface-area bases are kept in separate groups because "
+            "they cannot be compared at all."
+        ),
+    )
+    cmp_p.add_argument("--temp", type=float, default=None, help="Single temperature °C")
+    cmp_p.add_argument(
+        "--range",
+        dest="temp_range",
+        default="-35:-5:5",
+        help=(
+            "lo:hi:step in °C (default -35:-5:5). Use --range=-35:-5:5 with an "
+            "equals sign, since a leading minus otherwise looks like a flag"
+        ),
+    )
+    cmp_p.add_argument(
+        "--basis", choices=["BET", "geometric", "volume"], default=None,
+        help="Restrict to one surface-area basis",
+    )
+    cmp_p.add_argument(
+        "--ids", nargs="*", default=None, help="Restrict to these parameterizations"
+    )
+    cmp_p.add_argument("--json", action="store_true", help="JSON output")
+
     val = sub.add_parser(
         "validate",
         help="Check this build against published claims",
@@ -743,6 +802,208 @@ def _cmd_assay(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_aerosol(args: argparse.Namespace) -> int:
+    from ina_sim.physics.aerosol import (
+        SizeDistribution,
+        inp_concentration,
+        inp_spectrum,
+        parse_mode,
+    )
+    from ina_sim.physics.ns import evaluate, get_parameterization
+
+    try:
+        param = get_parameterization(args.param_id)
+        modes = tuple(parse_mode(spec) for spec in args.modes)
+        dist = SizeDistribution(modes=modes, d_min_um=args.d_min, d_max_um=args.d_max)
+    except (KeyError, ValueError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    if param.quantity != "ns":
+        print(
+            f"{param.id} is a rate coefficient, not a site density; an INP "
+            "concentration needs ns(T).",
+            file=sys.stderr,
+        )
+        return 1
+
+    try:
+        if args.curve:
+            results = inp_spectrum(dist, param, step_c=args.step)
+        else:
+            single = inp_concentration(dist, evaluate(param, args.temp))
+            results = [single] if single else []
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "distribution": dist.as_dict(),
+                    "parameterization": param.as_dict(),
+                    "results": [r.as_dict() for r in results],
+                },
+                indent=2,
+            )
+        )
+        return 0
+
+    print(f"{param.material}  [{param.id}]  {param.as_dict()['citation']}")
+    for mode in modes:
+        label = f"  {mode.name or 'mode'}:"
+        print(
+            f"{label:<16} {mode.number_per_cm3:g} cm⁻³, "
+            f"D_g {mode.median_diameter_um:g} µm, σ_g {mode.geometric_sd:g}"
+        )
+    if dist.truncated:
+        print(
+            f"  truncated:     {args.d_min or '—'} … {args.d_max or '—'} µm "
+            "(compare only with measurements over the same range)"
+        )
+    print(
+        f"  total:         {dist.total_number_per_m3() / 1e6:.4g} cm⁻³, "
+        f"surface area {dist.surface_area_m2_per_m3():.4g} m²/m³"
+    )
+    print()
+
+    if not results:
+        print(
+            f"No value: {args.temp:g} °C is outside the fitted range "
+            f"[{param.t_min_c:g}, {param.t_max_c:g}] °C."
+        )
+        return 0
+
+    print(
+        f"{'T °C':>7}  {'n_INP /L':>11}  {'band /L':>23}  "
+        f"{'activated':>10}  {'d50':>7}  {'>1µm':>6}"
+    )
+    print("-" * 78)
+    for r in results:
+        band = (
+            f"{r.n_inp_low_per_litre:.3g} … {r.n_inp_high_per_litre:.3g}"
+            if r.n_inp_low_per_litre is not None
+            else "—"
+        )
+        d50 = "—" if r.d50_contribution_um is None else f"{r.d50_contribution_um:.2f}"
+        print(
+            f"{r.temperature_c:>7.1f}  {r.n_inp_per_litre:>11.4g}  {band:>23}  "
+            f"{r.activated_fraction:>10.2e}  {d50:>7}  {r.fraction_from_coarse:>6.0%}"
+        )
+    print()
+    last = results[-1]
+    print(
+        "d50 = median diameter of the particles supplying the INP; "
+        "'>1µm' = share of INP from coarse particles."
+    )
+    print(
+        f"Linear approximation ns × S_tot would give "
+        f"{last.n_inp_linear_per_litre:.4g} /L at {last.temperature_c:g} °C "
+        f"({last.linear_ratio:.3g}× the exact integral)."
+    )
+    for note in last.notes:
+        print(f"  - {note}")
+    return 0
+
+
+def _cmd_compare(args: argparse.Namespace) -> int:
+    from ina_sim.physics.intercompare import (
+        intercompare,
+        summarise,
+        temperature_grid,
+    )
+
+    if args.temp is not None:
+        temps = [args.temp]
+    else:
+        try:
+            lo, hi, step = (float(x) for x in args.temp_range.split(":"))
+        except ValueError:
+            print("--range must be lo:hi:step, e.g. -35:-5:5", file=sys.stderr)
+            return 1
+        try:
+            temps = temperature_grid(lo, hi, step)
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+
+    try:
+        groups = intercompare(temperatures=temps, ids=args.ids, area_basis=args.basis)
+    except KeyError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "summary": summarise(groups),
+                    "groups": [g.as_dict() for g in groups],
+                },
+                indent=2,
+            )
+        )
+        return 0
+
+    for group in groups:
+        title = f"{group.quantity} on a {group.area_basis} basis  [{group.units}]"
+        print(title)
+        print("=" * len(title))
+        if len(group.parameterization_ids) < 2:
+            print(
+                f"  only {group.parameterization_ids[0]} — nothing to compare it "
+                "with on this basis. A second fit for the same quantity is what "
+                "would make this group informative."
+            )
+            print()
+            continue
+
+        labels = [cell.material_key[:11] for cell in group.rows[0].cells]
+        print(
+            f"{'T °C':>7}  " + "  ".join(f"{lab:>11}" for lab in labels)
+            + f"  {'range':>7}"
+        )
+        print("-" * (9 + 13 * len(labels) + 9))
+        for row in group.rows:
+            cells = [
+                "—" if cell.log10_value is None else f"{cell.log10_value:.2f}"
+                for cell in row.cells
+            ]
+            spread = "—" if row.spread_log10 is None else f"{row.spread_log10:.2f}"
+            flag = "  CONFLICT" if row.conflict else ""
+            print(
+                f"{row.temperature_c:>7.1f}  "
+                + "  ".join(f"{c:>11}" for c in cells)
+                + f"  {spread:>7}{flag}"
+            )
+        print()
+        print(
+            f"  values are log10({group.quantity}) in {group.units}; 'range' is "
+            "max − min across the row."
+        )
+        if group.disagreement_testable:
+            print(
+                f"  CONFLICT = two fits of the SAME material with non-overlapping "
+                f"σ bands ({group.n_conflicts}/{len(group.rows)} rows)."
+            )
+        else:
+            print(
+                "  These are different materials, so the range is a real "
+                "difference between substances, NOT a disagreement between "
+                "fits. No two fits here describe the same material, so this "
+                "build cannot test whether the literature disagrees."
+            )
+        print()
+
+    summary = summarise(groups)
+    print(
+        f"{summary['n_groups']} groups, {summary['n_comparable_groups']} with more "
+        f"than one fit. {summary['note']}"
+    )
+    return 0
+
+
 def _cmd_validate(args: argparse.Namespace) -> int:
     from ina_sim.validation.runner import format_report, run_validation
 
@@ -808,6 +1069,10 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_ns(args)
     if args.cmd == "assay":
         return _cmd_assay(args)
+    if args.cmd == "aerosol":
+        return _cmd_aerosol(args)
+    if args.cmd == "compare":
+        return _cmd_compare(args)
     if args.cmd == "freeze":
         return _cmd_freeze(args)
     if args.cmd == "validate":

@@ -10,6 +10,10 @@
 #   applies_to    library candidate ids this parameterization describes
 #                 (empty = material has no library candidate; still queryable)
 #   material      what was actually measured, as described by the source
+#   material_key  stable id for the substance. Two fits sharing this key
+#                 describe the SAME material and may genuinely disagree;
+#                 fits with different keys differ because the substances
+#                 differ, which is not a disagreement at all.
 #   status        published  - equation transcribed from the source
 #                 derived    - computed here from tabulated source measurements
 #   kind          singular   - ns(T), time-independent active site density
@@ -44,6 +48,7 @@ default_sigma_reference: hiranuma2015
 
 parameterizations:
   - id: k_feldspar_harrison2019
+    material_key: k_feldspar
     applies_to: [k_feldspar]
     material: "K-feldspar (microcline; samples with exsolution microtexture)"
     status: published
@@ -62,6 +67,7 @@ parameterizations:
       + (-1.05x10^-4 T^4) + (-9.08x10^-7 T^5), (-3.5 to -37.5 C; 0.8)
 
   - id: quartz_harrison2019
+    material_key: quartz
     applies_to: []
     material: "quartz, freshly milled (authors call this an upper limit)"
     status: published
@@ -83,6 +89,7 @@ parameterizations:
       upper limit to the ice-nucleating ability" of quartz.
 
   - id: plagioclase_harrison2019
+    material_key: plagioclase
     applies_to: []
     material: "plagioclase feldspar"
     status: published
@@ -101,6 +108,7 @@ parameterizations:
       + (-0.106 T^2) + (-1.71T) -12, (-12.5 to -38.5 C; 0.5)
 
   - id: albite_harrison2019
+    material_key: albite
     applies_to: []
     material: "albite (Na-feldspar)"
     status: published
@@ -119,6 +127,7 @@ parameterizations:
       + (-1.79x10^-2 T) -2.29, (-6.5 to -35.5 C; 0.7)
 
   - id: desert_dust_niemand2012
+    material_key: desert_dust
     applies_to: []
     material: "desert dust (Sahara, Asia, Canary Islands, Israel; AIDA chamber)"
     status: published
@@ -139,6 +148,7 @@ parameterizations:
       2.5 to 4.5 across the range, which is the practical accuracy to expect.
 
   - id: kaolinite_murray2011
+    material_key: kaolinite
     applies_to: [kaolinite]
     material: "kaolinite KGa-1b (Clay Minerals Society)"
     status: published
@@ -161,6 +171,7 @@ parameterizations:
       should be done with caution".
 
   - id: water_homogeneous_murray2010
+    material_key: pure_water
     applies_to: [water_control]
     material: "pure water droplets (homogeneous freezing)"
     status: published
@@ -183,6 +194,7 @@ parameterizations:
 
   # Derived here, not published. Regenerate with: python tools/fit_agi_ns.py
   - id: agi_marcolli2016_derived
+    material_key: agi
     applies_to: [agi]
     material: "AgI, compilation of 6 immersion studies (1962-2016)"
     status: derived

@@ -46,6 +46,7 @@ class Parameterization:
 
     id: str
     material: str
+    material_key: str  # stable substance id; same key => same material
     status: str  # published | derived
     kind: str  # singular | stochastic
     mode: str  # immersion | deposition | contact | homogeneous
@@ -77,6 +78,7 @@ class Parameterization:
         return {
             "id": self.id,
             "material": self.material,
+            "material_key": self.material_key,
             "status": self.status,
             "kind": self.kind,
             "mode": self.mode,
@@ -174,6 +176,7 @@ def load_parameterizations() -> dict[str, Parameterization]:
             "id",
             "applies_to",
             "material",
+            "material_key",
             "status",
             "kind",
             "mode",
@@ -193,6 +196,7 @@ def load_parameterizations() -> dict[str, Parameterization]:
         param = Parameterization(
             id=str(row["id"]),
             material=str(row.get("material", "")),
+            material_key=str(row["material_key"]),
             status=str(row.get("status", "published")),
             kind=str(row.get("kind", "singular")),
             mode=str(row.get("mode", "immersion")),

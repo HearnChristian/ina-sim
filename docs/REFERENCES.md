@@ -4,7 +4,7 @@
 
 Every empirical number in INA-sim traces to an entry here. `access` records how it entered the repo: **verbatim** (equation transcribed from the source text), **derived** (computed here from the source's tabulated measurements, with the script named), or **textbook** (standard constant or relation).
 
-Generated from INA-sim 0.3.1. Also available as `ina-sim refs`.
+Generated from INA-sim 0.3.2. Also available as `ina-sim refs`.
 
 ## Harrison et al. (2019)
 
@@ -141,3 +141,11 @@ Pruppacher, H. R., Klett, J. D. (1997). Microphysics of Clouds and Precipitation
 Alduchov, O. A., Eskridge, R. E. (1996). Improved Magnus form approximation of saturation vapor pressure. Journal of Applied Meteorology 35, 601-609. doi:10.1175/1520-0450(1996)035<0601:IMFAOS>2.0.CO;2
 
 **Used for:** Saturation vapour pressure formulation used by physics/atmosphere.py.
+
+## Seinfeld and Pandis (2016)
+
+`seinfeld2016` · access: **textbook** · paywalled
+
+Seinfeld, J. H., Pandis, S. N. (2016). Atmospheric Chemistry and Physics: From Air Pollution to Climate Change, 3rd edition. John Wiley and Sons.
+
+**Used for:** Standard reference for the lognormal aerosol size distribution and its Hatch-Choate moment relations, used by physics/aerosol.py to get total surface area per unit air volume from a set of modes.

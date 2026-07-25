@@ -51,3 +51,5 @@ jobs:
         run: python tools/gen_docs.py --check
       - name: Registry inventory
         run: ina-sim ns --list
+      - name: Intercomparison of the published fits
+        run: ina-sim compare --range=-35:-10:5
