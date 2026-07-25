@@ -38,3 +38,7 @@ experiments/*
 *.nc
 *.h5
 *.hdf5
+
+# Session uploads (local builder feed)
+data/uploads/*
+!data/uploads/.gitkeep

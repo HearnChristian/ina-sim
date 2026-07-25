@@ -19,11 +19,12 @@ class ScreenResult:
     density_efficiency_factor: float
     total_water_vapor_kg: float
     condensable_water_kg: float
-    # Bridged engineering proxies (assumption-dependent)
     relative_ina_score: float
+    relative_ina_low: float
+    relative_ina_high: float
     ina_per_kg_proxy: float | None
     confidence: Confidence
-    fidelity: str = "L0+L1-heuristic"
+    fidelity: str = "L0+L1-table+CNT"
     warnings: list[str] = field(default_factory=list)
     details: dict[str, Any] = field(default_factory=dict)
 
@@ -35,6 +36,8 @@ class ScreenResult:
             "efficiency": round(self.overall_efficiency, 4),
             "rating": self.efficiency_rating,
             "relative_ina": round(self.relative_ina_score, 4),
+            "relative_ina_low": round(self.relative_ina_low, 4),
+            "relative_ina_high": round(self.relative_ina_high, 4),
             "ina_per_kg_proxy": (
                 None
                 if self.ina_per_kg_proxy is None
@@ -44,5 +47,12 @@ class ScreenResult:
             "confidence": self.confidence.value,
             "fidelity": self.fidelity,
             "T_c": self.conditions.temperature_c,
+            "pathway": self.details.get("pathway"),
+            "mode_factor": self.details.get("mode_factor"),
+            "cnt_score": self.details.get("cnt_score"),
+            "temp_method": self.details.get("temp_method"),
+            "source": self.details.get("source"),
+            "citation": self.details.get("citation"),
+            "cnt": self.details.get("cnt"),
             "warnings": "; ".join(self.warnings) if self.warnings else "",
         }

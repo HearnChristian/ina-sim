@@ -1,0 +1,13 @@
+# Optional curiosity agents — NOT loaded by default.
+# Load only via explicit tooling if needed for experiments.
+candidates:
+  - id: testosterone
+    name: Testosterone (Experimental)
+    formula: C19H28O2
+    agent_class: organic
+    base_efficiency: 0.42
+    optimal_temp_c: -15.0
+    density_g_cm3: 1.1
+    notes: "Curiosity organic from supercool calculator. EXPLORATORY only — never a payload claim."
+    tags: [organic, exploratory, not-for-payload, experimental]
+    source: supercool-water-calculator

@@ -1,0 +1,79 @@
+# Directional relative activity vs temperature (°C) for immersion-style ranking.
+# Values are normalized 0–1 within each agent (peak ≈ 1). NOT lab ns(T).
+# Used to replace pure exp(|T−Topt|) falloff for agents with literature flavor.
+#
+# Citations are teaching anchors (see docs/LITERATURE-CHECKS.md).
+
+version: 1
+
+curves:
+  agi:
+    citation: "Classic glaciogenic AgI seeding window (mixed-phase cold clouds); peak efficiency often cited near about −5 to −15 °C"
+    method: table
+    points:
+      # [T_c, relative_activity]
+      - [5.0, 0.02]
+      - [0.0, 0.08]
+      - [-3.0, 0.35]
+      - [-5.0, 0.70]
+      - [-7.0, 1.00]
+      - [-10.0, 0.92]
+      - [-15.0, 0.72]
+      - [-20.0, 0.48]
+      - [-30.0, 0.22]
+      - [-38.0, 0.10]
+
+  k_feldspar:
+    citation: "K-feldspar as highly ice-active mineral dust (Atkinson et al. Nature 2013 lineage); active warmer than many clays"
+    method: table
+    points:
+      - [0.0, 0.05]
+      - [-5.0, 0.25]
+      - [-10.0, 0.55]
+      - [-15.0, 0.95]
+      - [-18.0, 1.00]
+      - [-22.0, 0.90]
+      - [-28.0, 0.65]
+      - [-35.0, 0.40]
+
+  kaolinite:
+    citation: "Kaolinite immersion INA typically colder / weaker than K-feldspar in comparative mineral studies"
+    method: table
+    points:
+      - [0.0, 0.02]
+      - [-10.0, 0.15]
+      - [-15.0, 0.35]
+      - [-20.0, 0.60]
+      - [-25.0, 0.95]
+      - [-28.0, 1.00]
+      - [-35.0, 0.70]
+      - [-40.0, 0.45]
+
+  water_control:
+    citation: "Homogeneous freezing of pure water droplets ~ −35 to −38 °C (cloud physics texts)"
+    method: table
+    points:
+      - [0.0, 0.0]
+      - [-20.0, 0.02]
+      - [-30.0, 0.15]
+      - [-35.0, 0.70]
+      - [-38.0, 1.00]
+      - [-42.0, 0.85]
+
+  nacl:
+    citation: "Sea salt primarily CCN/hygroscopic; weak as ice nucleant in cold immersion teaching contrast"
+    method: table
+    # flat low ice activity; warm track uses hygroscopic pathway instead
+    points:
+      - [5.0, 0.08]
+      - [0.0, 0.10]
+      - [-10.0, 0.12]
+      - [-20.0, 0.10]
+      - [-30.0, 0.08]
+
+# Relative uncertainty fractions applied to η → relINA bands by confidence tier
+uncertainty:
+  high: 0.12
+  medium: 0.22
+  low: 0.35
+  exploratory: 0.50

@@ -4,37 +4,40 @@
 # placeholders pending validation.
 
 candidates:
+  # base_efficiency = peak relative strength vs AgI (AgI = 1.0) when activity tables apply.
+  # a(T) from activity_curves.yaml supplies the temperature shape (peak 1 at agent optimum).
+
   - id: agi
     name: Silver Iodide
     formula: AgI
     agent_class: ice_nucleant
-    base_efficiency: 0.85
+    base_efficiency: 1.0
     optimal_temp_c: -7.0
     lattice_match_score: 0.95
     density_g_cm3: 5.67
-    notes: "Industry classic ice nucleant; lattice match to ice Ih. Always-on benchmark."
-    tags: [baseline, weather-mod, high-confidence]
-    source: supercool-water-calculator+literature
+    notes: "Baseline glaciogenic INA. Peak relative score = 1.0 by definition. Cost is the main practical downside."
+    tags: [baseline, weather-mod, high-confidence, starter-set]
+    source: literature+activity_table
 
   - id: nacl
-    name: Sodium Chloride
+    name: Sodium Chloride (sea salt proxy)
     formula: NaCl
     agent_class: hygroscopic
-    base_efficiency: 0.65
+    base_efficiency: 0.12
     optimal_temp_c: -12.0
     density_g_cm3: 2.16
-    notes: "Hygroscopic seeder; different mechanism than AgI. Teaching contrast."
-    tags: [hygroscopic, contrast]
-    source: supercool-water-calculator
+    notes: "CCN/hygroscopic contrast on ice track (weak ice activity). Use warm_cloud track to rank as droplet seed."
+    tags: [hygroscopic, contrast, sea-salt, starter-set]
+    source: literature+activity_table
 
   - id: cacl2
     name: Calcium Chloride
     formula: CaCl2
     agent_class: hygroscopic
-    base_efficiency: 0.75
+    base_efficiency: 0.18
     optimal_temp_c: -10.0
     density_g_cm3: 2.15
-    notes: "Hygroscopic agent from supercool calculator."
+    notes: "Hygroscopic seeder; CCN pathway. Peak strength relative to AgI on ice track is low."
     tags: [hygroscopic]
     source: supercool-water-calculator
 
@@ -42,10 +45,10 @@ candidates:
     name: Potassium Iodide
     formula: KI
     agent_class: ice_nucleant
-    base_efficiency: 0.70
+    base_efficiency: 0.55
     optimal_temp_c: -8.0
     density_g_cm3: 3.12
-    notes: "Iodide salt from supercool calculator; treat as medium confidence."
+    notes: "Iodide ice nucleant; medium confidence vs AgI."
     tags: [iodide]
     source: supercool-water-calculator
 
@@ -53,36 +56,36 @@ candidates:
     name: Potassium Feldspar
     formula: KAlSi3O8
     agent_class: ice_nucleant
-    base_efficiency: 0.78
+    base_efficiency: 0.58
     optimal_temp_c: -15.0
-    lattice_match_score: 0.55
+    lattice_match_score: 0.60
     density_g_cm3: 2.56
-    notes: "Strong natural mineral INA (dust-relevant). Face/defect sensitive."
-    tags: [baseline, mineral, dust]
-    source: literature-placeholder
+    notes: "Strong mineral INA (Atkinson et al. lineage). Peak strength ~0.58 vs AgI; a(T) peaks colder than AgI."
+    tags: [baseline, mineral, dust, starter-set]
+    source: literature+activity_table
 
   - id: kaolinite
     name: Kaolinite
     formula: Al2Si2O5(OH)4
     agent_class: ice_nucleant
-    base_efficiency: 0.55
-    optimal_temp_c: -20.0
-    lattice_match_score: 0.40
+    base_efficiency: 0.28
+    optimal_temp_c: -25.0
+    lattice_match_score: 0.35
     density_g_cm3: 2.65
-    notes: "Well-studied clay; often weaker/more nuanced than K-feldspar."
-    tags: [baseline, mineral, clay]
-    source: literature-placeholder
+    notes: "Clay INA; colder and weaker than K-feldspar in comparative immersion studies."
+    tags: [baseline, mineral, clay, starter-set]
+    source: literature+activity_table
 
   - id: water_control
     name: Pure Water / Homogeneous Control
     formula: H2O
     agent_class: control
-    base_efficiency: 0.05
+    base_efficiency: 0.08
     optimal_temp_c: -38.0
     density_g_cm3: 0.92
-    notes: "Negative/control reference for homogeneous-ish behavior."
-    tags: [baseline, control]
-    source: literature-placeholder
+    notes: "Homogeneous-freezing control; activity rises only near −35…−38 °C."
+    tags: [baseline, control, starter-set]
+    source: literature+activity_table
 
   - id: inert_surface
     name: Inert Hydrophobic Surface
@@ -95,13 +98,5 @@ candidates:
     tags: [control]
     source: synthetic
 
-  - id: testosterone
-    name: Testosterone (Experimental)
-    formula: C19H28O2
-    agent_class: organic
-    base_efficiency: 0.42
-    optimal_temp_c: -15.0
-    density_g_cm3: 1.1
-    notes: "Curiosity organic from supercool calculator. EXPLORATORY only — never a payload claim."
-    tags: [organic, exploratory, not-for-payload]
-    source: supercool-water-calculator
+# testosterone and other curiosity organics live in experimental_candidates.yaml
+# (not loaded by default — keeps demos professional)

@@ -1,25 +1,42 @@
 # INA-sim
 
-**Local multi-fidelity ice nucleation agent (INA) screening lab** for atmospheric weather-modification R&D (Rainmaker-track familiarity, alternative INA exploration, honest confidence scores).
+**Local multi-fidelity ice nucleation agent (INA) screening lab** — Rainmaker-track literacy, alternative INA exploration, honest confidence scores.
 
-> Decision-support lab — not operational weather control, not absolute nucleation rates.
+> **60% learning lab · 40% portfolio.** Not a product to sell. Not operational weather control. Not absolute nucleation rates.
 
-```
-Candidate library → conditions grid → L0/L1 heuristic screen → rank + INA/kg proxy + confidence
-                                      (L2 MD deep-dives: planned)
-```
+**Living handbook:** [`docs/PROJECT.md`](docs/PROJECT.md)  
+**Professional checklist:** [`docs/PROFESSIONAL-ROADMAP.md`](docs/PROFESSIONAL-ROADMAP.md)  
+**One-pager:** [`docs/ONE-PAGER.md`](docs/ONE-PAGER.md) · **Demo:** [`docs/DEMO-SCRIPT.md`](docs/DEMO-SCRIPT.md)  
+**Literature:** [`docs/LITERATURE-CHECKS.md`](docs/LITERATURE-CHECKS.md)  
+**Skill:** `.grok/skills/ina-sim/`
 
-## Status (v0.1)
+## What this is not
+
+- Not calibrated \(n_s(T)\) or field INP measurements  
+- Not cloud-resolving / radar verification  
+- Not operational seeding guidance or a commercial product  
+- Not a substitute for wet-lab validation before any payload spend  
+
+## Status (v0.2)
 
 | Layer | State |
 |-------|--------|
-| **L0/L1 heuristic screen** | Working (CLI) |
-| **Candidate library** | AgI, minerals, hygroscopics, controls, exploratory organic |
-| **INA/kg proxy** | Assumption-based relative figure of merit |
-| **L2 MD** | Scaffold only (not implemented) |
-| **Dashboard** | Not yet |
+| **L0/L1 + activity tables** | Working (CLI + GUI) |
+| **Atmosphere** | Water + ice Magnus, S_w / S_i, RH_ice |
+| **CNT (educational)** | Secondary score only |
+| **Tracks** | `ice` (glaciogenic) vs `warm_cloud` (CCN) |
+| **Literature xref** | Directional public-research checks on every screen |
+| **Uncertainty bands** | Confidence-tier relINA low–high |
+| **Provenance** | version, param_hash, assumptions, clamp report |
+| **Molecular uploads** | SMILES/XYZ/MOL/JSON → exploratory builder feed |
+| **GUI** | Win95 chrome, assumptions panel, mechanism banner |
+| **CI** | GitHub Actions + golden fixtures |
+| **L2 MD / molecular builder** | Next |
 
-Physics for vapor inventory + agent efficiency curves was **cannibalized** from [`HearnChristian/supercool-water-calculator`](https://github.com/HearnChristian/supercool-water-calculator) (see `legacy/` and `src/ina_sim/physics/`).
+```
+Candidate library → track + conditions → activity tables / heuristics
+  → rank + bands + sources → literature_xref + provenance export
+```
 
 ## Quick start
 
@@ -30,65 +47,27 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 
 ina-sim list
-ina-sim screen --temp -10
-ina-sim screen --temp -7 --ids agi k_feldspar kaolinite water_control
-ina-sim show agi --temp -7
-ina-sim screen --temp -15 --json --out data/results/screen.json
-pytest
+ina-sim screen --temp -10 --tag starter-set
+ina-sim screen --temp 0 --track warm_cloud
+ina-sim upload --smiles CCO --name Ethanol
+ina-sim gui                    # http://127.0.0.1:8765/
+pytest -q
 ```
 
-## Example
-
-```text
-$ ina-sim screen --temp -7
-INA-sim screen @ T=-7.0°C  RH=95.0%  P=850.0 hPa  mode=immersion
-rank  id              η   relINA   INA/kg*  conf          name
-...
-```
-
-## Architecture
+## Architecture pointer
 
 ```
 src/ina_sim/
-  physics/     atmosphere (Magnus, density, vapor) + efficiency heuristics
-  library/     YAML candidate pack
-  bridge/      efficiency → relative INA / INA-per-kg proxy
-  screen/      rank + screen_one
-  models/      Candidate, Conditions, ScreenResult
-  cli.py       list | screen | show
-docs/          mission lock + voice-note prompts
-legacy/        original supercool-water-calculator snapshot
+  physics/     atmosphere, activity tables, efficiency, CNT, research_xref
+  library/     candidates.yaml, activity_curves.yaml, molecular uploads
+  screen/      rank + uncertainty
+  provenance.py  param_hash + assumptions
+  schema.py      payload validation
+  gui/         offline stdlib server + Win95 HTML
+docs/          PROJECT.md (keep updated)
+tests/         literature, golden, properties, stress
 ```
-
-## Confidence tiers
-
-| Tier | Meaning |
-|------|---------|
-| **high** | Baseline class with expected directional behavior |
-| **medium** | Plausible physics, limited validation |
-| **low** | Weak parameterization |
-| **exploratory** | Novel organics / unvalidated — **never for payload claims** |
-
-## Honest limitations
-
-- Hygroscopic seeders (NaCl, CaCl₂) ≠ ice nucleants (AgI, feldspar); shared ranking UX only.
-- Efficiency model is a **demo heuristic** (legacy exp-temp falloff), not classical nucleation theory.
-- `ina_per_kg_proxy` assumes monodisperse spheres + fixed active-site fraction — change assumptions before any sales narrative.
-- No MD, no cloud-resolving model, no operational guidance.
-
-## Mission
-
-Primary: atmospheric weather modification / Rainmaker Tech Corp skill-building.  
-Secondary: ice-promoting organics (exploratory).  
-Out of scope for now: general materials discovery lab.
-
-See `docs/INA-sim-mvp.md`.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
-
-## Provenance
-
-- SuperCool Liquid Water Calculator logic → `src/ina_sim/physics/` + agent table seeds  
-- Snapshot preserved under `legacy/supercool-water-calculator/`
+MIT — see [LICENSE](LICENSE). Scientific disclaimer: [CONTRIBUTING.md](CONTRIBUTING.md).

@@ -1,0 +1,1530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>INA-sim</title>
+  <style>
+    :root {
+      --face: #c0c0c0;
+      --face-dark: #808080;
+      --face-light: #dfdfdf;
+      --face-white: #ffffff;
+      --face-black: #000000;
+      --title: #000080;
+      --title-text: #ffffff;
+      --desktop: #008080;
+      --font: "MS Sans Serif", "Microsoft Sans Serif", Tahoma, "Segoe UI", sans-serif;
+      --mono: "Consolas", "Courier New", Courier, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      background: var(--desktop);
+      font-family: var(--font);
+      font-size: 12px;
+      color: var(--face-black);
+      padding: 8px;
+    }
+    body.tips-on [data-tip] { cursor: help; }
+
+    .raised {
+      border-top: 2px solid var(--face-white);
+      border-left: 2px solid var(--face-white);
+      border-right: 2px solid var(--face-black);
+      border-bottom: 2px solid var(--face-black);
+      background: var(--face);
+    }
+    .raised-inner {
+      border-top: 1px solid var(--face-light);
+      border-left: 1px solid var(--face-light);
+      border-right: 1px solid var(--face-dark);
+      border-bottom: 1px solid var(--face-dark);
+    }
+    .sunken {
+      border-top: 2px solid var(--face-dark);
+      border-left: 2px solid var(--face-dark);
+      border-right: 2px solid var(--face-white);
+      border-bottom: 2px solid var(--face-white);
+      background: var(--face-white);
+    }
+    .sunken-deep {
+      border-top: 2px solid var(--face-black);
+      border-left: 2px solid var(--face-black);
+      border-right: 2px solid var(--face-white);
+      border-bottom: 2px solid var(--face-white);
+      background: var(--face-white);
+    }
+    .window {
+      max-width: 1180px;
+      margin: 0 auto;
+      background: var(--face);
+      box-shadow: 2px 2px 0 #00000055;
+      /* no min-height: 100vh — that fought flex children and encouraged growth */
+      display: flex;
+      flex-direction: column;
+    }
+    .window > .raised-inner {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .titlebar {
+      background: linear-gradient(90deg, var(--title) 0%, #1084d0 100%);
+      color: var(--title-text);
+      font-weight: bold;
+      padding: 3px 4px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      user-select: none;
+    }
+    .titlebar .left { display: flex; align-items: center; gap: 6px; }
+    .titlebar .icon {
+      width: 14px; height: 14px;
+      background: var(--face);
+      border: 1px solid var(--face-black);
+      font-size: 10px;
+      line-height: 12px;
+      text-align: center;
+      color: var(--title);
+      font-weight: bold;
+    }
+    .title-btns { display: flex; gap: 2px; }
+    .tbtn {
+      width: 16px; height: 14px;
+      background: var(--face);
+      color: var(--face-black);
+      font-size: 9px;
+      line-height: 12px;
+      text-align: center;
+      border-top: 1px solid var(--face-white);
+      border-left: 1px solid var(--face-white);
+      border-right: 1px solid var(--face-black);
+      border-bottom: 1px solid var(--face-black);
+      cursor: default;
+      padding: 0;
+      font-family: var(--font);
+    }
+    .menubar {
+      display: flex;
+      padding: 2px 4px;
+      border-bottom: 1px solid var(--face-dark);
+      background: var(--face);
+      position: relative;
+      z-index: 20;
+    }
+    .menu { position: relative; }
+    .menu > button {
+      font-family: var(--font);
+      font-size: 12px;
+      background: transparent;
+      border: none;
+      padding: 2px 8px;
+      cursor: default;
+    }
+    .menu > button:hover, .menu.open > button {
+      background: var(--title);
+      color: #fff;
+    }
+    .menu-panel {
+      display: none;
+      position: absolute;
+      left: 0;
+      top: 100%;
+      min-width: 200px;
+      background: var(--face);
+      border-top: 2px solid var(--face-white);
+      border-left: 2px solid var(--face-white);
+      border-right: 2px solid var(--face-black);
+      border-bottom: 2px solid var(--face-black);
+      padding: 2px;
+      z-index: 30;
+      box-shadow: 2px 2px 0 #00000044;
+    }
+    .menu.open .menu-panel { display: block; }
+    .menu-panel button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      font-family: var(--font);
+      font-size: 12px;
+      background: transparent;
+      border: none;
+      padding: 3px 18px;
+      cursor: default;
+      white-space: nowrap;
+    }
+    .menu-panel button:hover { background: var(--title); color: #fff; }
+    .menu-panel .sep {
+      height: 1px;
+      margin: 3px 2px;
+      background: var(--face-dark);
+      border-bottom: 1px solid var(--face-white);
+    }
+    .menu-panel button .accel {
+      float: right;
+      margin-left: 20px;
+      opacity: 0.85;
+    }
+
+    .client {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      padding: 8px;
+    }
+    .client.busy input, .client.busy select, .client.busy button.btn:not(#run) {
+      opacity: 0.65;
+      pointer-events: none;
+    }
+    .client.busy #run { pointer-events: none; }
+
+    fieldset.group {
+      border-top: 1px solid var(--face-white);
+      border-left: 1px solid var(--face-white);
+      border-right: 1px solid var(--face-dark);
+      border-bottom: 1px solid var(--face-dark);
+      margin: 0 0 8px;
+      padding: 8px 10px 10px;
+      min-width: 0;
+    }
+    fieldset.group legend { padding: 0 4px; font-size: 12px; }
+
+    .banner {
+      background: #000080;
+      color: #fff;
+      padding: 5px 8px;
+      margin-bottom: 8px;
+      font-size: 11px;
+      line-height: 1.35;
+    }
+    .banner.warm { background: #804000; }
+
+    .sliders { display: grid; gap: 6px; }
+    .slider-row {
+      display: grid;
+      grid-template-columns: 100px 1fr 72px;
+      align-items: center;
+      gap: 8px;
+    }
+    .slider-row label { white-space: nowrap; }
+    .slider-row .val {
+      font-family: var(--mono);
+      text-align: right;
+      padding: 1px 4px;
+    }
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 4px;
+      background: var(--face-dark);
+      border-top: 1px solid var(--face-black);
+      border-left: 1px solid var(--face-black);
+      border-right: 1px solid var(--face-white);
+      border-bottom: 1px solid var(--face-white);
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 11px; height: 18px;
+      background: var(--face);
+      border-top: 1px solid var(--face-white);
+      border-left: 1px solid var(--face-white);
+      border-right: 1px solid var(--face-black);
+      border-bottom: 1px solid var(--face-black);
+      cursor: pointer;
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 11px; height: 18px;
+      background: var(--face);
+      border-top: 1px solid var(--face-white);
+      border-left: 1px solid var(--face-white);
+      border-right: 1px solid var(--face-black);
+      border-bottom: 1px solid var(--face-black);
+      border-radius: 0;
+      cursor: pointer;
+    }
+    .opts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 14px;
+      align-items: center;
+      margin-top: 8px;
+    }
+    .opts label { display: flex; align-items: center; gap: 4px; }
+    select {
+      font-family: var(--font);
+      font-size: 12px;
+      background: var(--face-white);
+      border-top: 2px solid var(--face-dark);
+      border-left: 2px solid var(--face-dark);
+      border-right: 2px solid var(--face-white);
+      border-bottom: 2px solid var(--face-white);
+      padding: 2px 4px;
+    }
+    button.btn {
+      font-family: var(--font);
+      font-size: 12px;
+      background: var(--face);
+      border-top: 2px solid var(--face-white);
+      border-left: 2px solid var(--face-white);
+      border-right: 2px solid var(--face-black);
+      border-bottom: 2px solid var(--face-black);
+      padding: 3px 14px;
+      min-width: 75px;
+      cursor: pointer;
+    }
+    button.btn:active {
+      border-top: 2px solid var(--face-black);
+      border-left: 2px solid var(--face-black);
+      border-right: 2px solid var(--face-white);
+      border-bottom: 2px solid var(--face-white);
+      padding: 4px 13px 2px 15px;
+    }
+    button.btn:disabled { color: var(--face-dark); cursor: default; }
+    button.btn.default {
+      border: 2px solid var(--face-black);
+      outline: 1px dotted var(--face-black);
+      outline-offset: -4px;
+    }
+
+    .cols {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      align-items: start; /* don't stretch columns to max child every redraw */
+    }
+    @media (min-width: 900px) {
+      .cols { grid-template-columns: 1.35fr 1fr; }
+    }
+    .cols > div {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 0;
+    }
+    .cols > div > fieldset.group { margin-bottom: 0; }
+    .results-group { display: flex; flex-direction: column; min-height: 0; }
+    .results-group .scroll {
+      /* fixed box — never grows with redraws */
+      height: 280px;
+      max-height: 280px;
+      overflow: auto;
+      background: var(--face-white);
+    }
+    .sketch-group { display: flex; flex-direction: column; min-height: 0; }
+    .sketch-group .sketch-frame {
+      /* fixed pixel box so canvas resize cannot expand the page */
+      height: 300px;
+      max-height: 300px;
+      padding: 4px;
+      background: var(--face);
+      overflow: hidden;
+    }
+    .sketch-group .sketch-frame canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      max-width: 100%;
+      max-height: 100%;
+      image-rendering: auto;
+      background: #010409;
+    }
+    .sketch-cap {
+      margin-top: 4px;
+      font-size: 11px;
+      color: #404040;
+      min-height: 1.2em;
+      max-height: 2.4em;
+      overflow: hidden;
+    }
+    #tsweep {
+      display: block;
+      width: 100%;
+      height: 160px;
+      max-height: 160px;
+      background: var(--face-white);
+    }
+
+    .listview {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      background: var(--face-white);
+    }
+    .listview th {
+      background: var(--face);
+      font-weight: normal;
+      text-align: left;
+      padding: 2px 6px;
+      border-top: 1px solid var(--face-white);
+      border-left: 1px solid var(--face-white);
+      border-right: 1px solid var(--face-dark);
+      border-bottom: 1px solid var(--face-dark);
+      white-space: nowrap;
+    }
+    .listview td {
+      padding: 2px 6px;
+      border-bottom: 1px solid #e0e0e0;
+      white-space: nowrap;
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+    .listview tr.selected td { background: var(--title); color: #fff; }
+    .listview tr:hover:not(.selected) td { background: #e8e8ff; }
+    .results-stale { opacity: 0.55; }
+
+    .propgrid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2px 12px;
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+    .propgrid .k { color: #000080; }
+    .propgrid .v { text-align: right; }
+    .flag {
+      display: inline-block;
+      padding: 0 4px;
+      border: 1px solid var(--face-dark);
+      background: var(--face);
+      font-family: var(--font);
+      font-size: 11px;
+    }
+    .flag.on { background: #ffff80; }
+    .assumptions {
+      font-family: var(--mono);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+    .assumptions dt { color: #000080; float: left; clear: left; width: 11em; }
+    .assumptions dd { margin: 0 0 2px 11.5em; }
+
+    .warns {
+      margin: 4px 0 0;
+      padding-left: 16px;
+      color: #800000;
+      font-size: 11px;
+    }
+    .xref-line { font-size: 11px; margin-top: 4px; color: #000080; }
+    .xref-line.bad { color: #800000; }
+
+    .statusbar {
+      border-top: 1px solid var(--face-white);
+      margin-top: 4px;
+      padding: 2px;
+      display: flex;
+      gap: 4px;
+    }
+    .statusbar .pane { flex: 1; padding: 2px 6px; min-height: 18px; }
+    .statusbar .pane.fixed { flex: 0 0 120px; }
+    .statusbar .pane.err { color: #800000; }
+    .statusbar .pane.stale { background: #ffff80; }
+
+    .modal-back {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #00000055;
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-back.show { display: flex; }
+    .dialog { min-width: 320px; max-width: 460px; background: var(--face); }
+    .dialog.wide { max-width: 520px; min-width: 400px; }
+    .dialog .body { padding: 12px 14px; line-height: 1.45; }
+    .dialog .actions { padding: 0 12px 12px; text-align: right; display: flex; gap: 8px; justify-content: flex-end; }
+    .dialog .field { margin: 8px 0; }
+    .dialog .field label { display: block; margin-bottom: 2px; color: #000080; }
+    .dialog input[type="text"], .dialog input[type="file"] {
+      width: 100%;
+      font-family: var(--font);
+      font-size: 12px;
+    }
+    .dialog input[type="text"] {
+      background: var(--face-white);
+      border-top: 2px solid var(--face-dark);
+      border-left: 2px solid var(--face-dark);
+      border-right: 2px solid var(--face-white);
+      border-bottom: 2px solid var(--face-white);
+      padding: 3px 4px;
+    }
+    .glossary dt { font-weight: bold; margin-top: 6px; color: #000080; }
+    .glossary dd { margin: 2px 0 0 0; }
+  </style>
+</head>
+<body>
+  <div class="window raised">
+    <div class="raised-inner">
+      <div class="titlebar">
+        <div class="left">
+          <div class="icon">❄</div>
+          <span>INA-sim — Ice-nucleant screening lab</span>
+        </div>
+        <div class="title-btns">
+          <button class="tbtn" type="button" tabindex="-1" aria-hidden="true">_</button>
+          <button class="tbtn" type="button" tabindex="-1" aria-hidden="true">□</button>
+          <button class="tbtn" type="button" tabindex="-1" data-tip="Close the browser tab. Stop the server with Ctrl+C in the terminal.">×</button>
+        </div>
+      </div>
+
+      <div class="menubar" id="menubar">
+        <div class="menu" data-menu="file">
+          <button type="button">File</button>
+          <div class="menu-panel">
+            <button type="button" data-cmd="export">Export results JSON…</button>
+            <div class="sep"></div>
+            <button type="button" data-cmd="about-server">Server status</button>
+          </div>
+        </div>
+        <div class="menu" data-menu="view">
+          <button type="button">View</button>
+          <div class="menu-panel">
+            <button type="button" data-cmd="toggle-tips">Cursor tips: <span id="tips_state">off</span></button>
+            <button type="button" data-cmd="toggle-live">Live on release: <span id="live_state">off</span></button>
+            <div class="sep"></div>
+            <button type="button" data-cmd="run">Run screen <span class="accel">Enter</span></button>
+            <button type="button" data-cmd="sweep">Temperature sweep</button>
+          </div>
+        </div>
+        <div class="menu" data-menu="physics">
+          <button type="button">Physics</button>
+          <div class="menu-panel">
+            <button type="button" data-cmd="upload-dialog">Upload molecule…</button>
+            <div class="sep"></div>
+            <button type="button" data-cmd="about-physics">Model notes…</button>
+            <button type="button" data-cmd="about-modes">Freezing modes…</button>
+            <button type="button" data-cmd="glossary">INA / CCN glossary…</button>
+          </div>
+        </div>
+        <div class="menu" data-menu="help">
+          <button type="button">Help</button>
+          <div class="menu-panel">
+            <button type="button" data-cmd="about">About INA-sim…</button>
+            <button type="button" data-cmd="help-columns">Column legend…</button>
+            <button type="button" data-cmd="glossary">Glossary…</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="client" id="client">
+        <div class="banner" id="mechanism_banner"
+          data-tip="Which problem you are ranking for. Ice nucleants make ice; CCN grow liquid drops.">
+          Ranking ice nucleants (INA) — salts demoted so they are not mistaken for ice agents
+        </div>
+
+        <fieldset class="group">
+          <legend data-tip="Parcel conditions for this screen run.">Conditions</legend>
+          <div class="sliders">
+            <div class="slider-row">
+              <label for="temp" data-tip="Cloud parcel temperature. Ice nucleants need supercooling (T &lt; 0 °C).">Temperature</label>
+              <input id="temp" type="range" min="-40" max="10" step="0.5" value="-10" />
+              <div class="val sunken" id="temp_v">-10.0 °C</div>
+            </div>
+            <div class="slider-row">
+              <label for="rh" data-tip="Relative humidity vs liquid water. When cold, ice RH is often higher than this.">Rel. humidity</label>
+              <input id="rh" type="range" min="40" max="100" step="1" value="95" />
+              <div class="val sunken" id="rh_v">95 %</div>
+            </div>
+            <div class="slider-row">
+              <label for="pressure" data-tip="Air pressure. 850 hPa ≈ mid-level mountain cloud.">Pressure</label>
+              <input id="pressure" type="range" min="500" max="1013" step="5" value="850" />
+              <div class="val sunken" id="pressure_v">850 hPa</div>
+            </div>
+            <div class="slider-row">
+              <label for="density" data-tip="How many seed particles per liter of air (heuristic loading).">Seed density</label>
+              <input id="density" type="range" min="1" max="500" step="1" value="100" />
+              <div class="val sunken" id="density_v">100 /L</div>
+            </div>
+            <div class="slider-row">
+              <label for="diameter" data-tip="Assumed particle size for the INA-per-kg estimate (surface/volume).">Particle size</label>
+              <input id="diameter" type="range" min="0.1" max="10" step="0.1" value="1.0" />
+              <div class="val sunken" id="diameter_v">1.0 µm</div>
+            </div>
+          </div>
+          <div class="opts">
+            <label data-tip="INA = ice-nucleating agent (makes ice). CCN = cloud condensation nucleus (grows liquid drops). Different physics — rank them on separate tracks.">
+              Rank for
+              <select id="track">
+                <option value="ice" selected>Ice nucleants (INA)</option>
+                <option value="warm_cloud">Liquid drops (CCN / warm)</option>
+              </select>
+            </label>
+            <label data-tip="How ice is thought to form on the particle.">
+              Freezing path
+              <select id="mode">
+                <option value="immersion" selected>Immersion (in liquid)</option>
+                <option value="deposition">Deposition (vapor→ice)</option>
+                <option value="contact">Contact</option>
+              </select>
+            </label>
+            <label data-tip="How to order the table. Default: relative score vs AgI-like baseline.">
+              Sort
+              <select id="sort">
+                <option value="relative_ina" selected>rel. score</option>
+                <option value="efficiency">efficiency η</option>
+                <option value="ina_per_kg">per-kg proxy</option>
+                <option value="cnt_score">CNT score</option>
+              </select>
+            </label>
+            <label data-tip="On = only the five core demo agents (AgI, K-feldspar, kaolinite, sea salt, water). Off = full library plus any molecules you uploaded.">
+              <input id="starter" type="checkbox" checked />
+              Core agents only
+            </label>
+            <label data-tip="Off = drag sliders freely, then press Run. On = re-run when you release a slider (not while dragging).">
+              <input id="live" type="checkbox" />
+              Live on release
+            </label>
+            <button class="btn default" id="run" type="button" data-tip="Apply current conditions and refresh ranks.">Run screen</button>
+            <button class="btn" id="sweep" type="button" data-tip="Plot relative score vs temperature for current agents.">T sweep</button>
+          </div>
+        </fieldset>
+
+        <div class="cols">
+          <div>
+            <fieldset class="group results-group">
+              <legend data-tip="Higher score = more effective under these conditions relative to an AgI-class reference. Not absolute lab rates.">
+                Results — relative score (AgI baseline)
+              </legend>
+              <div class="scroll sunken-deep">
+                <table class="listview" id="tbl">
+                  <thead>
+                    <tr>
+                      <th data-tip="Rank under current sort">#</th>
+                      <th data-tip="Short id">ID</th>
+                      <th data-tip="ice nucleant vs salt (CCN) vs control">Class</th>
+                      <th data-tip="Which pathway the model used">Pathway</th>
+                      <th data-tip="Overall efficiency 0–1">η</th>
+                      <th data-tip="Relative to AgI-class reference (η/0.85)">score</th>
+                      <th data-tip="Uncertainty band from confidence tier">band</th>
+                      <th data-tip="Educational CNT only — not the main rank">CNT</th>
+                      <th data-tip="How much to trust this row">Conf</th>
+                      <th data-tip="Where the η curve comes from">source</th>
+                    </tr>
+                  </thead>
+                  <tbody id="rows">
+                    <tr><td colspan="10">Ready — press Run screen.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <ul id="warns" class="warns" hidden></ul>
+              <div id="xref" class="xref-line" hidden></div>
+              <div id="claims" class="xref-line" hidden></div>
+            </fieldset>
+
+            <fieldset class="group">
+              <legend data-tip="How each agent’s relative score changes with temperature.">Temperature sweep</legend>
+              <canvas id="tsweep" width="720" height="160" aria-label="Temperature sweep chart"></canvas>
+              <div class="sketch-cap" id="sweep_cap">Press T sweep to map score vs temperature (−30…0 °C).</div>
+            </fieldset>
+          </div>
+
+          <div>
+            <fieldset class="group">
+              <legend data-tip="Always shown so numbers stay honest.">Assumptions</legend>
+              <dl class="assumptions" id="assumptions">
+                <dt>particles</dt><dd>equal spheres</dd>
+                <dt>diameter</dt><dd id="as_d">1 µm</dd>
+                <dt>active-site frac.</dt><dd>0.01</dd>
+                <dt>score scale</dt><dd>0–1 · AgI peak = 1</dd>
+                <dt>fidelity</dt><dd id="as_fid">L0+L1-table+CNT</dd>
+                <dt>run hash</dt><dd id="as_hash">—</dd>
+                <dt>inputs clamped?</dt><dd id="as_clamp">no</dd>
+              </dl>
+            </fieldset>
+
+            <fieldset class="group">
+              <legend data-tip="Parcel thermodynamics from Magnus vapor pressures.">Atmosphere</legend>
+              <div class="propgrid" id="atm">
+                <div class="k">S_water</div><div class="v">—</div>
+                <div class="k">S_ice</div><div class="v">—</div>
+                <div class="k">RH_ice</div><div class="v">—</div>
+                <div class="k">e / e_sat,w</div><div class="v">—</div>
+                <div class="k">Dewpoint</div><div class="v">—</div>
+                <div class="k">ρ_air</div><div class="v">—</div>
+                <div class="k">Vapor mass</div><div class="v">—</div>
+                <div class="k">Flags</div><div class="v">—</div>
+              </div>
+            </fieldset>
+
+            <fieldset class="group sketch-group">
+              <legend data-tip="Visual only. Bar height = relative score. Not a molecular simulation.">
+                Relative score sketch
+              </legend>
+              <div class="sketch-frame sunken-deep">
+                <canvas id="viz" width="520" height="340" aria-label="Relative score chart"></canvas>
+              </div>
+              <div class="sketch-cap">
+                Y = relative score · X = agent · density of ice marks scales with score (illustration only).
+              </div>
+            </fieldset>
+          </div>
+        </div>
+
+        <div class="statusbar">
+          <div class="pane sunken" id="status">Initializing…</div>
+          <div class="pane sunken fixed" id="status_fid">L0+L1+CNT</div>
+          <div class="pane sunken fixed" id="status_ver">v—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- generic modal -->
+  <div class="modal-back" id="modal" role="dialog" aria-modal="true">
+    <div class="dialog raised" id="modal_dialog">
+      <div class="raised-inner">
+        <div class="titlebar">
+          <span id="modal_title">Dialog</span>
+          <button class="tbtn" type="button" id="modal_x">×</button>
+        </div>
+        <div class="body" id="modal_body"></div>
+        <div class="actions" id="modal_actions">
+          <button class="btn default" type="button" id="modal_ok">OK</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- hidden file inputs for Physics → Upload -->
+  <input id="mol_file" type="file" accept=".smi,.smiles,.xyz,.mol,.sdf,.json,.txt" hidden />
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let lastPayload = null;
+    let debounceTimer = null;
+    let selectedId = null;
+    let runGen = 0;
+    let screenAbort = null;
+    let sweepAbort = null;
+    let serverOk = true;
+    let healthTimer = null;
+    let lastFingerprint = null;
+    let resultsFresh = false;
+    let screenInFlight = false;
+    let tipsOn = false;
+    let modalOkHandler = null;
+
+    const SLIDERS = [
+      { id: "temp", fmt: (v) => Number(v).toFixed(1) + " °C" },
+      { id: "rh", fmt: (v) => Math.round(v) + " %" },
+      { id: "pressure", fmt: (v) => Math.round(v) + " hPa" },
+      { id: "density", fmt: (v) => Math.round(v) + " /L" },
+      { id: "diameter", fmt: (v) => Number(v).toFixed(1) + " µm" },
+    ];
+
+    function setStatus(msg, isErr) {
+      const el = $("status");
+      el.textContent = msg;
+      el.classList.toggle("err", !!isErr);
+    }
+
+    function syncLabels() {
+      for (const s of SLIDERS) $(s.id + "_v").textContent = s.fmt($(s.id).value);
+    }
+
+    function syncTipToggleUi() {
+      document.body.classList.toggle("tips-on", tipsOn);
+      $("tips_state").textContent = tipsOn ? "on" : "off";
+      $("live_state").textContent = $("live").checked ? "on" : "off";
+      // apply or clear title attributes from data-tip
+      document.querySelectorAll("[data-tip]").forEach((el) => {
+        if (tipsOn) el.setAttribute("title", el.getAttribute("data-tip"));
+        else el.removeAttribute("title");
+      });
+    }
+
+    function params() {
+      return new URLSearchParams({
+        temp: $("temp").value,
+        rh: $("rh").value,
+        pressure: $("pressure").value,
+        density: $("density").value,
+        diameter: $("diameter").value,
+        mode: $("mode").value,
+        track: $("track").value,
+        sort: $("sort").value,
+        starter_set: $("starter").checked ? "1" : "0",
+      });
+    }
+
+    function fmtG(x) {
+      const n = Number(x);
+      if (!Number.isFinite(n)) return String(x);
+      const a = Math.abs(n);
+      if (a !== 0 && (a >= 1e4 || a < 1e-3)) return n.toExponential(3).replace(/e\+?/, "e");
+      return String(+n.toPrecision(4));
+    }
+    function clientFingerprint() {
+      return (
+        "T=" + fmtG($("temp").value) +
+        "|RH=" + fmtG($("rh").value) +
+        "|P=" + fmtG($("pressure").value) +
+        "|den=" + fmtG($("density").value) +
+        "|d=" + fmtG($("diameter").value) +
+        "|mode=" + $("mode").value +
+        "|track=" + $("track").value +
+        "|sort=" + $("sort").value +
+        "|starter=" + ($("starter").checked ? "1" : "0")
+      );
+    }
+
+    function setBusy(on) {
+      $("client").classList.toggle("busy", !!on);
+      ["temp","rh","pressure","density","diameter","mode","track","sort","starter","live","sweep"].forEach((id) => {
+        const el = $(id);
+        if (el) el.disabled = !!on;
+      });
+    }
+
+    function markStale(reason) {
+      resultsFresh = false;
+      const scroll = document.querySelector(".results-group .scroll");
+      if (scroll) scroll.classList.add("results-stale");
+      $("status").classList.add("stale");
+      setStatus((reason || "Conditions changed") + " — press Run screen.", false);
+    }
+    function markFresh() {
+      resultsFresh = true;
+      const scroll = document.querySelector(".results-group .scroll");
+      if (scroll) scroll.classList.remove("results-stale");
+      $("status").classList.remove("stale");
+    }
+
+    function isAbort(err) {
+      return err && (err.name === "AbortError" || /aborted/i.test(String(err.message || err)));
+    }
+
+    async function apiFetch(url, options) {
+      const opts = Object.assign({ cache: "no-store" }, options || {});
+      let res;
+      try { res = await fetch(url, opts); }
+      catch (err) {
+        if (isAbort(err)) throw err;
+        await new Promise((r) => setTimeout(r, 200));
+        res = await fetch(url, opts);
+      }
+      const text = await res.text();
+      let data = null;
+      if (text) {
+        try { data = JSON.parse(text); }
+        catch {
+          if (!res.ok) throw new Error("HTTP " + res.status + " (server may have restarted)");
+          throw new Error("bad JSON from server");
+        }
+      }
+      if (!res.ok) throw new Error((data && data.error) || ("HTTP " + res.status));
+      return data;
+    }
+    async function apiGet(url, signal) { return apiFetch(url, { signal }); }
+
+    async function checkHealth() {
+      try {
+        const h = await apiGet("/api/health");
+        serverOk = true;
+        $("status_ver").textContent = "v" + (h.version || "—");
+        return true;
+      } catch (e) {
+        serverOk = false;
+        setStatus("Offline — run: ina-sim gui", true);
+        return false;
+      }
+    }
+    function startHealthWatch() {
+      if (healthTimer) clearInterval(healthTimer);
+      healthTimer = setInterval(async () => {
+        const was = serverOk;
+        const ok = await checkHealth();
+        if (ok && !was) { setStatus("Server back — re-running…", false); runScreen(); }
+      }, 5000);
+    }
+
+    /* —— Relative score sketch: fixed Y∈[0,1], ice plotters, clipped ——
+       Canvas uses FIXED frame size only — never write style height from
+       clientHeight (that was growing the UI on every redraw). */
+    function canvasCssSize(canvas) {
+      const parent = canvas.parentElement;
+      // content-box of fixed frame (padding 4+4)
+      const w = Math.max(120, (parent ? parent.clientWidth : 400) - 8);
+      const h = Math.max(120, (parent ? parent.clientHeight : 300) - 8);
+      return { w, h };
+    }
+    function prepCanvas(canvas) {
+      const { w, h } = canvasCssSize(canvas);
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      // Only buffer size — CSS size stays 100% of fixed frame
+      if (canvas.width !== Math.floor(w * dpr) || canvas.height !== Math.floor(h * dpr)) {
+        canvas.width = Math.floor(w * dpr);
+        canvas.height = Math.floor(h * dpr);
+      }
+      const ctx = canvas.getContext("2d");
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { ctx, W: w, H: h };
+    }
+
+    function drawViz(results, temp) {
+      const canvas = $("viz");
+      const { ctx, W, H } = prepCanvas(canvas);
+
+      ctx.fillStyle = "#010409";
+      ctx.fillRect(0, 0, W, H);
+
+      // Fixed scientific scale: score always 0 → 1 (AgI peak = 1)
+      const yMax = 1.0;
+      const padL = 52, padR = 16, padT = 32, padB = 64;
+      const plotW = W - padL - padR;
+      const plotH = H - padT - padB;
+      const yOf = (v) => padT + plotH * (1 - Math.max(0, Math.min(1, v)) / yMax);
+      const clampY = (y) => Math.max(padT + 1, Math.min(padT + plotH - 1, y));
+
+      // faint plot fill
+      ctx.fillStyle = "rgba(88,166,255,0.04)";
+      ctx.fillRect(padL, padT, plotW, plotH);
+
+      // horizontal grid + Y ticks
+      ctx.font = "11px Consolas, monospace";
+      for (let i = 0; i <= 5; i++) {
+        const val = i / 5; // 0, 0.2, … 1.0
+        const y = yOf(val);
+        ctx.strokeStyle = i === 0 || i === 5 ? "#484f58" : "#21262d";
+        ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+        ctx.fillStyle = "#8b949e";
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+        ctx.fillText(val.toFixed(1), padL - 8, y);
+      }
+
+      // axes
+      ctx.strokeStyle = "#58a6ff";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(padL, padT);
+      ctx.lineTo(padL, padT + plotH);
+      ctx.lineTo(W - padR, padT + plotH);
+      ctx.stroke();
+      ctx.lineWidth = 1;
+
+      // titles
+      ctx.fillStyle = "#e6edf3";
+      ctx.font = "12px Consolas, monospace";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      ctx.fillText("Relative score (AgI peak = 1)  ·  T = " + temp + " °C", padL, 8);
+      ctx.save();
+      ctx.translate(14, padT + plotH / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#8b949e";
+      ctx.font = "11px Consolas, monospace";
+      ctx.fillText("score", 0, 0);
+      ctx.restore();
+      ctx.fillStyle = "#8b949e";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.fillText("agent", padL + plotW / 2, H - 4);
+
+      if (!results || !results.length) return;
+      const n = Math.min(results.length, 8);
+      const gap = plotW / n;
+
+      results.slice(0, n).forEach((r, i) => {
+        const v = Math.max(0, Math.min(1, r.relative_ina || 0));
+        const cx = padL + gap * (i + 0.5);
+        const yScore = yOf(v);
+        // column bounds for plotters — entirely inside plot box
+        const colHalf = Math.min(28, gap * 0.38);
+        const yTop = clampY(yScore);
+        const yBot = padT + plotH;
+
+        let seed = r.id.split("").reduce((a, c) => a + c.charCodeAt(0), i * 97);
+        const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+        const strength = v;
+        const marks = 6 + Math.floor(strength * 36);
+        for (let p = 0; p < marks; p++) {
+          const mx = cx + (rnd() - 0.5) * 2 * colHalf;
+          // stack plotters from baseline up to score height (never above yScore / padT)
+          const my = clampY(yBot - rnd() * Math.max(4, yBot - yTop));
+          const sz = 1 + (strength > 0.5 ? 1 : 0);
+          ctx.fillStyle = r.class === "control" ? "#484f58" :
+            r.class === "hygroscopic" ? "#d2a8ff" :
+            r.class === "organic" ? "#f0883e" : "#79c0ff";
+          if (selectedId === r.id) ctx.fillStyle = "#ffffff";
+          ctx.fillRect(Math.round(mx), Math.round(my), sz, sz);
+          // small ice arms for strong ice nucleants
+          if (strength > 0.4 && r.class === "ice_nucleant" && rnd() > 0.7) {
+            ctx.fillStyle = "#b6e3ff";
+            ctx.fillRect(Math.round(mx) - 2, Math.round(my), 5, 1);
+            ctx.fillRect(Math.round(mx), Math.round(my) - 2, 1, 5);
+          }
+        }
+
+        // score tick on axis scale (horizontal hairline at score, clipped)
+        ctx.strokeStyle = selectedId === r.id ? "#ffffff" : "rgba(88,166,255,0.45)";
+        ctx.beginPath();
+        ctx.moveTo(cx - colHalf, yTop);
+        ctx.lineTo(cx + colHalf, yTop);
+        ctx.stroke();
+
+        // X labels — spaced two lines, never overlapping plot
+        ctx.fillStyle = "#e6edf3";
+        ctx.font = "11px Consolas, monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        const label = r.id.length > 10 ? r.id.slice(0, 9) + "…" : r.id;
+        ctx.fillText(label, cx, padT + plotH + 8);
+        ctx.fillStyle = "#58a6ff";
+        ctx.fillText(v.toFixed(2), cx, padT + plotH + 24);
+      });
+    }
+
+    function drawSweep(points) {
+      const canvas = $("tsweep");
+      // Fixed CSS height 160px — only set pixel buffer, never style.height
+      const cssW = Math.max(200, canvas.clientWidth || 720);
+      const cssH = 160;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      if (canvas.width !== Math.floor(cssW * dpr) || canvas.height !== Math.floor(cssH * dpr)) {
+        canvas.width = Math.floor(cssW * dpr);
+        canvas.height = Math.floor(cssH * dpr);
+      }
+      const ctx = canvas.getContext("2d");
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const W = cssW, H = cssH;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, W, H);
+
+      // room for Y label, X label, tick numbers
+      const padL = 48, padR = 14, padT = 28, padB = 40;
+      if (!points || !points.length) {
+        ctx.fillStyle = "#808080";
+        ctx.font = "12px MS Sans Serif, sans-serif";
+        ctx.fillText("No sweep data yet — press T sweep.", padL, H / 2);
+        return;
+      }
+      const colors = ["#000080", "#008000", "#800000", "#808000", "#800080", "#008080", "#404040"];
+      const ids = points[0].rankings.map((r) => r.id);
+      // Fixed Y scale 0–1 to match score definition
+      const yMax = 1.0;
+      const t0 = points[0].T_c, t1 = points[points.length - 1].T_c;
+      const xOf = (t) => padL + ((t - t0) / (t1 - t0 || 1)) * (W - padL - padR);
+      const yOf = (v) => padT + (1 - Math.max(0, Math.min(1, v)) / yMax) * (H - padT - padB);
+
+      // grid + Y ticks
+      ctx.strokeStyle = "#d0d0d0";
+      for (let i = 0; i <= 5; i++) {
+        const val = i / 5;
+        const y = yOf(val);
+        ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+        ctx.fillStyle = "#404040";
+        ctx.font = "10px Consolas, monospace";
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+        ctx.fillText(val.toFixed(1), padL - 6, y);
+      }
+
+      // X ticks every ~5 °C
+      ctx.font = "10px Consolas, monospace";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      const tStep = 5;
+      const tStart = Math.ceil(t0 / tStep) * tStep;
+      for (let t = tStart; t <= t1 + 1e-9; t += tStep) {
+        const x = xOf(t);
+        ctx.strokeStyle = "#d0d0d0";
+        ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, H - padB); ctx.stroke();
+        ctx.strokeStyle = "#000";
+        ctx.beginPath(); ctx.moveTo(x, H - padB); ctx.lineTo(x, H - padB + 4); ctx.stroke();
+        ctx.fillStyle = "#000";
+        ctx.fillText(String(t), x, H - padB + 6);
+      }
+      // endpoints if not on grid
+      ctx.fillText(String(t0), xOf(t0), H - padB + 6);
+      ctx.fillText(String(t1), xOf(t1), H - padB + 6);
+
+      // axes
+      ctx.strokeStyle = "#000";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(padL, padT);
+      ctx.lineTo(padL, H - padB);
+      ctx.lineTo(W - padR, H - padB);
+      ctx.stroke();
+      ctx.lineWidth = 1;
+
+      // axis titles
+      ctx.fillStyle = "#000";
+      ctx.font = "11px MS Sans Serif, sans-serif";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      ctx.fillText("score (AgI peak = 1)", padL, 4);
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.fillText("Temperature (°C)", padL + (W - padL - padR) / 2, H - 2);
+      ctx.save();
+      ctx.translate(12, padT + (H - padT - padB) / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.fillText("relative score", 0, 0);
+      ctx.restore();
+
+      ids.forEach((id, i) => {
+        ctx.strokeStyle = colors[i % colors.length];
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        points.forEach((p, j) => {
+          const row = p.rankings.find((r) => r.id === id);
+          const v = row ? Math.max(0, Math.min(1, row.relative_ina)) : 0;
+          const x = xOf(p.T_c), y = yOf(v);
+          if (j === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+      });
+
+      // legend
+      ids.slice(0, 6).forEach((id, i) => {
+        const lx = padL + 4 + i * Math.min(110, (W - padL - padR) / 6);
+        ctx.fillStyle = colors[i % colors.length];
+        ctx.fillRect(lx, 16, 10, 10);
+        ctx.fillStyle = "#000";
+        ctx.font = "10px MS Sans Serif, sans-serif";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
+        ctx.fillText(id, lx + 13, 15);
+      });
+      $("sweep_cap").textContent =
+        `T sweep: ${points.length} temps · ${ids.length} agents · Y fixed 0–1 (AgI peak = 1)`;
+    }
+
+    function renderAtm(a) {
+      if (!a) return;
+      const dp = (a.dewpoint_c == null || Number.isNaN(a.dewpoint_c))
+        ? "—" : a.dewpoint_c.toFixed(1) + " °C";
+      const cells = [
+        ["S_water", a.s_water.toFixed(3)],
+        ["S_ice", a.s_ice.toFixed(3)],
+        ["RH_ice", a.rh_ice_pct.toFixed(1) + " %"],
+        ["e / e_sat,w", a.e_hpa.toFixed(2) + " / " + a.e_sat_water_hpa.toFixed(2)],
+        ["Dewpoint", dp],
+        ["ρ_air", a.air_density_kg_m3.toFixed(3) + " kg/m³"],
+        ["Vapor mass", a.vapor_mass_kg.toFixed(1) + " kg"],
+      ];
+      $("atm").innerHTML = cells.map(([k, v]) =>
+        `<div class="k">${k}</div><div class="v">${v}</div>`
+      ).join("") +
+        `<div class="k">Flags</div><div class="v">
+          <span class="flag ${a.supercooled ? "on" : ""}">T&lt;0</span>
+          <span class="flag ${a.ice_supersaturated ? "on" : ""}">ice supersat.</span>
+        </div>`;
+    }
+
+    function renderTable(results) {
+      const tbody = $("rows");
+      if (!results.length) {
+        tbody.innerHTML = `<tr><td colspan="10">No candidates.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = results.map((r, i) => {
+        const cnt = r.cnt_score == null ? "—" : Number(r.cnt_score).toFixed(3);
+        const lo = r.relative_ina_low != null ? Number(r.relative_ina_low).toFixed(2) : "—";
+        const hi = r.relative_ina_high != null ? Number(r.relative_ina_high).toFixed(2) : "—";
+        const src = (r.source || "—").slice(0, 16);
+        const cite = (r.citation || r.source || "").replace(/"/g, "&quot;");
+        const sel = r.id === selectedId ? "selected" : "";
+        return `<tr class="${sel}" data-id="${r.id}" data-tip="${cite}">
+          <td>${i + 1}</td>
+          <td>${r.id}</td>
+          <td>${r.class}</td>
+          <td>${r.pathway || "—"}</td>
+          <td>${(r.efficiency || 0).toFixed(3)}</td>
+          <td>${(r.relative_ina || 0).toFixed(3)}</td>
+          <td>${lo}–${hi}</td>
+          <td>${cnt}</td>
+          <td>${r.confidence}</td>
+          <td>${src}</td>
+        </tr>`;
+      }).join("");
+      tbody.querySelectorAll("tr[data-id]").forEach((tr) => {
+        tr.addEventListener("click", () => {
+          selectedId = tr.getAttribute("data-id");
+          renderTable(results);
+          if (lastPayload) drawViz(lastPayload.results, lastPayload.conditions.temperature_c);
+        });
+      });
+      if (tipsOn) syncTipToggleUi();
+    }
+
+    function renderXref(lit) {
+      const el = $("xref");
+      if (!lit || !lit.summary) { el.hidden = true; return; }
+      const s = lit.summary;
+      el.hidden = false;
+      el.className = "xref-line" + (s.ok ? "" : " bad");
+      const fails = (lit.checks || []).filter((c) => c.status === "fail");
+      el.textContent = s.ok
+        ? `Literature check: ${s.pass} pass · ${s.skip} skip · consistent with public research direction`
+        : `Literature check: ${s.fail} fail — ` + fails.map((f) => f.id).slice(0, 3).join(", ");
+      el.setAttribute("data-tip", (lit.checks || []).map((c) => c.status + ": " + c.id + " — " + c.detail).join("\n"));
+      if (tipsOn) el.title = el.getAttribute("data-tip");
+    }
+
+    function renderClaims(ec) {
+      const el = $("claims");
+      if (!ec || !ec.summary) { el.hidden = true; return; }
+      el.hidden = false;
+      const s = ec.summary;
+      const nSup = s.n_supported || 0;
+      const tip = [
+        "SUPPORTED:",
+        ...(ec.supported || []).map((c) => "• " + c.claim),
+        "PROVISIONAL:",
+        ...(ec.provisional || []).slice(0, 4).map((c) => "• " + c.claim),
+        "NOT WARRANTED BY THIS TOOL ALONE:",
+        ...(ec.not_warranted_by_this_run || []).slice(0, 4).map((c) => "• " + c.claim),
+      ].join("\n");
+      el.textContent =
+        `Empirical claims this run: ${nSup} supported · ${s.n_provisional || 0} provisional · ` +
+        `${s.n_not_warranted || 0} out-of-scope (hover for list)`;
+      el.setAttribute("data-tip", tip);
+      if (tipsOn) el.title = tip;
+    }
+
+    function renderAssumptions(data) {
+      const a = data.assumptions || (data.provenance && data.provenance.assumptions) || {};
+      const c = data.conditions || {};
+      $("as_d").textContent = (c.particle_diameter_um != null ? c.particle_diameter_um : a.particle_diameter_um || 1) + " µm";
+      $("as_fid").textContent = data.fidelity || a.fidelity || "—";
+      $("as_hash").textContent = (data.provenance && data.provenance.param_hash) || "—";
+      $("as_clamp").textContent = data.clamped
+        ? "yes (" + Object.keys(data.clamp_fields || {}).join(", ") + ")"
+        : "no";
+    }
+
+    function plainBanner(data) {
+      const track = data.conditions && data.conditions.track;
+      if (track === "warm_cloud") {
+        return "Ranking liquid-drop seeds (CCN) — ice nucleants demoted. CCN = cloud condensation nuclei (grow water drops).";
+      }
+      return "Ranking ice nucleants (INA) — salts demoted. INA = ice-nucleating agent (helps form ice crystals).";
+    }
+
+    function render(data) {
+      if (data.fingerprint && data.fingerprint !== clientFingerprint()) return false;
+      lastPayload = data;
+      lastFingerprint = data.fingerprint || clientFingerprint();
+      $("status_ver").textContent = "v" + (data.version || "—");
+      $("status_fid").textContent = data.fidelity || "L0+L1+CNT";
+      const ban = $("mechanism_banner");
+      ban.textContent = plainBanner(data);
+      ban.className = "banner" + ((data.conditions && data.conditions.track === "warm_cloud") ? " warm" : "");
+      renderTable(data.results || []);
+      renderAtm(data.atmosphere);
+      renderAssumptions(data);
+      drawViz(data.results || [], data.conditions.temperature_c);
+      renderXref(data.literature_xref);
+      renderClaims(data.empirical_claims);
+      const warns = data.warnings || [];
+      const ul = $("warns");
+      if (warns.length) {
+        ul.hidden = false;
+        ul.innerHTML = warns.map((w) => `<li>${w}</li>`).join("");
+      } else { ul.hidden = true; ul.innerHTML = ""; }
+      const c = data.conditions;
+      const litOk = data.literature_xref && data.literature_xref.summary
+        ? (data.literature_xref.summary.ok ? "lit✓" : "lit✗") : "";
+      const nSup = (data.empirical_claims && data.empirical_claims.summary)
+        ? data.empirical_claims.summary.n_supported : 0;
+      markFresh();
+      setStatus(
+        `Done · ${data.results.length} agents · T=${c.temperature_c}°C · ${c.track === "warm_cloud" ? "CCN" : "INA"} · ${litOk} · ${nSup} claims · scale 0–1`,
+        false
+      );
+      return true;
+    }
+
+    async function runScreen() {
+      if (screenInFlight && screenAbort) screenAbort.abort();
+      const gen = ++runGen;
+      const requestedFp = clientFingerprint();
+      screenAbort = new AbortController();
+      screenInFlight = true;
+      $("run").disabled = true;
+      setBusy(true);
+      setStatus("Running…", false);
+      try {
+        const data = await apiGet("/api/screen?" + params().toString(), screenAbort.signal);
+        if (gen !== runGen) return;
+        if (!data.results) throw new Error("missing results");
+        if (clientFingerprint() !== requestedFp) { markStale("Sliders moved during run"); return; }
+        if (!render(data)) markStale("Result fingerprint mismatch");
+      } catch (e) {
+        if (isAbort(e) || gen !== runGen) return;
+        setStatus(/Failed to fetch|NetworkError/i.test(String(e.message))
+          ? "Server not reachable — is ina-sim gui running?"
+          : ("Error: " + e.message), true);
+      } finally {
+        if (gen === runGen) {
+          $("run").disabled = false;
+          screenInFlight = false;
+          setBusy(false);
+        }
+      }
+    }
+
+    async function runSweep() {
+      if (sweepAbort) sweepAbort.abort();
+      sweepAbort = new AbortController();
+      $("sweep").disabled = true;
+      setStatus("Temperature sweep…", false);
+      try {
+        const p = params();
+        p.set("t_min", "-30"); p.set("t_max", "0"); p.set("step", "2");
+        const data = await apiGet("/api/tsweep?" + p.toString(), sweepAbort.signal);
+        drawSweep(data.points || []);
+        setStatus(`Sweep done · ${data.n_temps} temps · ${data.n_agents} agents`, false);
+      } catch (e) {
+        if (isAbort(e)) return;
+        setStatus("Error: " + e.message, true);
+      } finally { $("sweep").disabled = false; }
+    }
+
+    function exportJson() {
+      if (!lastPayload) { setStatus("Nothing to export — run a screen first.", true); return; }
+      try {
+        const blob = new Blob([JSON.stringify(lastPayload, null, 2)], { type: "application/json" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `ina-sim-screen-T${lastPayload.conditions.temperature_c}.json`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        setStatus("Exported JSON.", false);
+      } catch (e) { setStatus("Export failed: " + e.message, true); }
+    }
+
+    /* —— dialogs —— */
+    function hideModal() {
+      $("modal").classList.remove("show");
+      modalOkHandler = null;
+      $("modal_dialog").classList.remove("wide");
+      $("modal_actions").innerHTML = `<button class="btn default" type="button" id="modal_ok">OK</button>`;
+      $("modal_ok").addEventListener("click", hideModal);
+    }
+    function showModal(title, html, { wide, actions } = {}) {
+      closeMenus();
+      $("modal_title").textContent = title;
+      $("modal_body").innerHTML = html;
+      $("modal_dialog").classList.toggle("wide", !!wide);
+      if (actions) {
+        $("modal_actions").innerHTML = actions;
+      } else {
+        $("modal_actions").innerHTML = `<button class="btn default" type="button" id="modal_ok">OK</button>`;
+        $("modal_ok").addEventListener("click", hideModal);
+      }
+      $("modal").classList.add("show");
+      const ok = $("modal_ok");
+      if (ok) ok.focus();
+    }
+
+    function showUploadDialog() {
+      showModal("Upload molecule", `
+        <p>Add a structure to the session library as an <b>exploratory</b> agent (builder feed). Not a payload claim.</p>
+        <div class="field">
+          <label>File (SMILES / XYZ / MOL / JSON)</label>
+          <input id="dlg_file" type="file" accept=".smi,.smiles,.xyz,.mol,.sdf,.json,.txt" />
+        </div>
+        <div class="field">
+          <label>or paste SMILES</label>
+          <input id="dlg_smiles" type="text" placeholder="e.g. CCO" spellcheck="false" />
+        </div>
+        <div class="field">
+          <label>Display name (optional)</label>
+          <input id="dlg_name" type="text" placeholder="Ethanol" />
+        </div>
+        <p style="font-size:11px;color:#404040">After upload, turn off “Core agents only” and Run screen to rank it.</p>
+      `, {
+        wide: true,
+        actions: `
+          <button class="btn" type="button" id="modal_cancel">Cancel</button>
+          <button class="btn default" type="button" id="modal_ok">Upload</button>
+        `,
+      });
+      $("modal_cancel").addEventListener("click", hideModal);
+      $("modal_ok").addEventListener("click", async () => {
+        const file = $("dlg_file").files && $("dlg_file").files[0];
+        const smiles = ($("dlg_smiles").value || "").trim();
+        const name = ($("dlg_name").value || "").trim() || null;
+        try {
+          let body;
+          if (file) {
+            body = JSON.stringify({ content: await file.text(), filename: file.name, name });
+          } else if (smiles) {
+            body = JSON.stringify({ smiles, format: "smiles", name });
+          } else {
+            setStatus("Provide a file or SMILES.", true);
+            return;
+          }
+          setStatus("Uploading…", false);
+          const data = await apiFetch("/api/upload/molecule", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body,
+          });
+          hideModal();
+          $("starter").checked = false;
+          setStatus(`Uploaded ${data.candidate.id} — Core agents off. Run screen to rank.`, false);
+          await runScreen();
+        } catch (e) {
+          setStatus("Upload error: " + e.message, true);
+        }
+      });
+    }
+
+    function onSliderInput() {
+      syncLabels();
+      if (lastFingerprint && clientFingerprint() !== lastFingerprint) markStale("Conditions changed");
+    }
+    function onControlReleased() {
+      if ($("live").checked) {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(runScreen, 50);
+      } else markStale("Conditions changed");
+      $("live_state").textContent = $("live").checked ? "on" : "off";
+    }
+
+    function closeMenus() {
+      document.querySelectorAll(".menu.open").forEach((m) => m.classList.remove("open"));
+    }
+    function openMenu(menuEl) {
+      const was = menuEl.classList.contains("open");
+      closeMenus();
+      if (!was) menuEl.classList.add("open");
+    }
+    document.querySelectorAll(".menu > button").forEach((btn) => {
+      btn.addEventListener("click", (ev) => { ev.stopPropagation(); openMenu(btn.parentElement); });
+    });
+    document.addEventListener("click", () => closeMenus());
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") { closeMenus(); hideModal(); }
+    });
+    $("modal").addEventListener("click", (ev) => { if (ev.target === $("modal")) hideModal(); });
+    $("modal_x").addEventListener("click", hideModal);
+    $("modal_ok").addEventListener("click", hideModal);
+
+    function runCmd(cmd) {
+      closeMenus();
+      switch (cmd) {
+        case "export": exportJson(); break;
+        case "about-server":
+          apiGet("/api/health").then((h) => {
+            showModal("Server status", `<p><b>OK</b> · offline local</p>
+              <p>version ${h.version}<br>fidelity ${h.fidelity}<br>uploads ${h.n_uploads}</p>`);
+          }).catch((e) => showModal("Server status", `<p><b>Unreachable</b></p><p>${e.message}</p>
+            <p><code>ina-sim gui</code></p>`));
+          break;
+        case "toggle-tips":
+          tipsOn = !tipsOn;
+          syncTipToggleUi();
+          setStatus("Cursor tips " + (tipsOn ? "on — hover labels for definitions" : "off"), false);
+          break;
+        case "toggle-live":
+          $("live").checked = !$("live").checked;
+          $("live_state").textContent = $("live").checked ? "on" : "off";
+          setStatus("Live on release: " + ($("live").checked ? "ON" : "OFF"), false);
+          break;
+        case "run": runScreen(); break;
+        case "sweep": runSweep(); break;
+        case "upload-dialog": showUploadDialog(); break;
+        case "about-physics":
+          showModal("Model notes", `
+            <p><b>L0 + L1 activity tables + educational CNT</b></p>
+            <ul>
+              <li>Relative score vs AgI-class reference (not absolute lab rates)</li>
+              <li>Activity vs temperature tables for key agents (directional literature)</li>
+              <li>CNT is a secondary column only</li>
+              <li>Separate tracks: ice nucleants (INA) vs liquid-drop seeds (CCN)</li>
+            </ul>
+            <p>See <code>docs/LITERATURE-CHECKS.md</code> and <code>docs/ONE-PAGER.md</code>.</p>`);
+          break;
+        case "about-modes":
+          showModal("Freezing paths", `
+            <p><b>Immersion</b> — particle inside a supercooled liquid droplet (most common ranking default).</p>
+            <p><b>Deposition</b> — vapor freezes directly onto a particle; needs ice supersaturation.</p>
+            <p><b>Contact</b> — particle touches a supercooled drop (proxy factor).</p>`);
+          break;
+        case "glossary":
+          showModal("Glossary", `
+            <dl class="glossary">
+              <dt>INA — ice-nucleating agent</dt>
+              <dd>A particle that helps form ice crystals in supercooled cloud water or vapor. Example: silver iodide, some mineral dusts.</dd>
+              <dt>CCN — cloud condensation nucleus</dt>
+              <dd>A particle that helps liquid water drops form/grow (often salts). Not the same as making ice.</dd>
+              <dt>Core agents only</dt>
+              <dd>Limits the table to the five demo agents: AgI, K-feldspar, kaolinite, sea salt, water control. Turn off to include uploads and the rest of the library.</dd>
+              <dt>rel. score</dt>
+              <dd>Heuristic effectiveness relative to an AgI-class reference. Directional teaching number with an uncertainty band — not field seeding rates.</dd>
+              <dt>Literature check</dt>
+              <dd>Automated pass/fail against public research <i>direction</i> (e.g. feldspar more active than kaolinite). Not a calibration to measured ns(T).</dd>
+            </dl>`, { wide: true });
+          break;
+        case "about":
+          showModal("About INA-sim", `
+            <p><b>INA-sim</b> — local ice-nucleant screening lab.</p>
+            <p>60% personal learning · 40% portfolio. Not a product. Not operational weather control.</p>
+            <p>MIT license. See CONTRIBUTING.md for the scientific disclaimer.</p>`);
+          break;
+        case "help-columns":
+          showModal("Columns", `
+            <p><b>η</b> — overall efficiency (0–1)</p>
+            <p><b>score</b> — relative to AgI-class reference</p>
+            <p><b>band</b> — uncertainty from confidence tier</p>
+            <p><b>CNT</b> — educational classical nucleation score (secondary)</p>
+            <p><b>Conf</b> — high / medium / low / exploratory</p>
+            <p><b>source</b> — provenance of the activity curve</p>
+            <p>Turn on <b>View → Cursor tips</b> for hover definitions.</p>`);
+          break;
+      }
+    }
+
+    document.querySelectorAll(".menu-panel button[data-cmd]").forEach((b) => {
+      b.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        runCmd(b.getAttribute("data-cmd"));
+      });
+    });
+
+    SLIDERS.forEach((s) => {
+      $(s.id).addEventListener("input", onSliderInput);
+      $(s.id).addEventListener("change", onControlReleased);
+    });
+    ["mode", "track", "sort", "starter", "live"].forEach((id) => {
+      $(id).addEventListener("change", onControlReleased);
+    });
+    $("run").addEventListener("click", runScreen);
+    $("sweep").addEventListener("click", runSweep);
+    let resizeTimer = null;
+    window.addEventListener("resize", () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        if (lastPayload) drawViz(lastPayload.results, lastPayload.conditions.temperature_c);
+      }, 100);
+    });
+    window.addEventListener("error", (ev) => setStatus("UI error: " + (ev.message || "unknown"), true));
+    window.addEventListener("unhandledrejection", (ev) => {
+      if (isAbort(ev.reason)) return;
+      setStatus("UI error: " + ((ev.reason && ev.reason.message) || String(ev.reason)), true);
+    });
+
+    syncLabels();
+    syncTipToggleUi();
+    startHealthWatch();
+    (async () => {
+      if (await checkHealth()) runScreen();
+    })();
+  </script>
+</body>
+</html>

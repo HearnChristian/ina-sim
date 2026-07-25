@@ -5,10 +5,15 @@
 | Level | Role | v0.1 |
 |-------|------|------|
 | **L0** | Descriptors (lattice match, density, tags) | Partial (YAML fields) |
-| **L1** | Heuristic efficiency + vapor inventory + rank | **Implemented** |
-| **L1b** | CNT-style free-energy barrier estimates | Planned |
+| **L1** | Heuristic efficiency + vapor inventory + rank | **Implemented** (mode/class pathways) |
+| **L1b** | CNT-style free-energy barrier estimates | **Educational implemented** (`physics/cnt.py`) |
+| **Atmosphere** | Water/ice Magnus, S_w, S_i, RH_ice, dewpoint | **Implemented** |
+| **Research xref** | Directional public-literature consistency | **Implemented** (`physics/research_xref.py`) |
+| **Uploads** | SMILES/XYZ/MOL → exploratory candidates | **Implemented** (builder feed) |
 | **L2** | MD / seeding templates (OpenMM/GROMACS, CPU) | Planned |
 | **Bridge** | Particle assumptions → INA/kg proxy | **Implemented (relative)** |
+
+See **`docs/PROJECT.md`** for the full living handbook.
 
 ## Data flow
 

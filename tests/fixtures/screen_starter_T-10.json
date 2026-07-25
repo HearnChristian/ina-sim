@@ -1,0 +1,44 @@
+{
+  "version": "0.2.1",
+  "fidelity": "L0+L1-table+CNT",
+  "baseline": "agi",
+  "results": [
+    {
+      "id": "agi",
+      "class": "ice_nucleant",
+      "pathway": "ice_nucleation",
+      "relative_ina": 0.9091,
+      "confidence": "high"
+    },
+    {
+      "id": "k_feldspar",
+      "class": "ice_nucleant",
+      "pathway": "ice_nucleation",
+      "relative_ina": 0.3198,
+      "confidence": "high"
+    },
+    {
+      "id": "kaolinite",
+      "class": "ice_nucleant",
+      "pathway": "ice_nucleation",
+      "relative_ina": 0.0479,
+      "confidence": "high"
+    },
+    {
+      "id": "nacl",
+      "class": "hygroscopic",
+      "pathway": "hygroscopic_ccn",
+      "relative_ina": 0.0052,
+      "confidence": "medium"
+    },
+    {
+      "id": "water_control",
+      "class": "control",
+      "pathway": "control",
+      "relative_ina": 0.0006,
+      "confidence": "high"
+    }
+  ],
+  "literature_xref_ok": true,
+  "mechanism_banner": "Ranking ice nucleants (INA) \u2014 salts demoted. INA = ice-nucleating agent (helps form ice crystals). Score scale: 0\u20131 with AgI peak = 1."
+}
