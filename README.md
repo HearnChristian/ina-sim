@@ -24,10 +24,28 @@ Every screen labels which candidates have either.
 ```bash
 ina-sim ns --list                  # what is actually parameterized, and by whom
 ina-sim ns --temp -20              # ns(T) / J(T) from the literature
+ina-sim assay my_run.csv           # YOUR droplet-freezing data -> ns(T) + comparison
 ina-sim freeze --id k_feldspar_harrison2019 --diameter 1 --curve
 ina-sim validate                   # does this build still reproduce its sources?
 ina-sim refs                       # the bibliography behind every number
 ```
+
+### Bring your own experiment
+
+`ina-sim assay` reads a cold-stage or microlitre-array run (CSV or JSON),
+inverts it to an ns(T) spectrum with droplet-counting uncertainty (Wilson score
+interval), flags the range your droplet count can actually resolve, and scores
+it against every published fit on the same surface-area basis:
+
+```
+Against published fits on the same (BET) area basis:
+parameterization                    n    bias   rmse  cover  verdict
+k_feldspar_harrison2019            17   -0.07   0.14   100%  consistent with this fit
+albite_harrison2019                17   +1.43   1.44     0%  sample is more active than this fit by >2 sigma
+```
+
+See [`docs/METHODS.md` §5](docs/METHODS.md) for the file format and
+`examples/kfeldspar_synthetic_assay.csv` for a template.
 
 ## Rules the code enforces
 
@@ -50,6 +68,7 @@ ina-sim refs                       # the bibliography behind every number
 | Layer | State |
 |-------|--------|
 | **Empirical ns(T) / J(T) registry** | 7 published fits + 1 derived in-repo, with units, area basis, validity, σ, DOI |
+| **Assay import** | your CSV/JSON run → ns(T) with Wilson bands, dynamic-range flags, comparison to published fits |
 | **Droplet-freezing observables** | frozen fraction, Vali inversion, T50, INP concentration, cooling-ramp integration |
 | **Singular + stochastic descriptions** | Vali (1971) and Murray et al. (2011), reported side by side |
 | **Validation suite** | 5 anchors against published claims, run in CI (`ina-sim validate`) |
@@ -83,6 +102,7 @@ ina-sim list
 ina-sim screen --temp -10 --tag starter-set
 ina-sim screen --temp 0 --track warm_cloud
 ina-sim ns --temp -20
+ina-sim assay examples/kfeldspar_synthetic_assay.csv
 ina-sim validate
 ina-sim gui                    # http://127.0.0.1:8765/
 pytest -q
@@ -101,13 +121,17 @@ src/ina_sim/
                  evidence.py  measured / solute / none, per candidate
   library/       candidates.yaml, activity_curves.yaml,
                  parameterizations.yaml, references.yaml
+  assay/         ingest.py (CSV/JSON + 3 surface-area routes)
+                 spectrum.py  Vali inversion, Wilson bands, registry comparison
   validation/    anchors.yaml + runner (ina-sim validate)
                  datasets/ digitized literature measurements
   screen/        rank + uncertainty
   gui/           offline stdlib server + Win95 HTML
-tools/           fit_agi_ns.py (derives the AgI fit), gen_docs.py
+examples/        kfeldspar_synthetic_assay.csv (labelled synthetic template)
+tools/           fit_agi_ns.py (derives the AgI fit), gen_docs.py,
+                 make_example_assay.py
 docs/            METHODS.md, VALIDATION.md, REFERENCES.md, PROJECT.md
-tests/           248 tests: units, registry, freezing physics, validation, references
+tests/           288 tests: units, registry, freezing physics, assay import, validation, references
 ```
 
 ## License

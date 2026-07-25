@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -121,6 +122,71 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Droplet diameter µm, used by volume-based homogeneous freezing",
     )
     fz.add_argument("--json", action="store_true", help="JSON output")
+
+    asy = sub.add_parser(
+        "assay",
+        help="Import your own droplet-freezing run and invert it to ns(T)",
+        description=(
+            "Read a cold-stage or microlitre-array experiment (CSV or JSON), "
+            "invert it to an ice nucleation active site density spectrum with "
+            "droplet-counting uncertainty, and compare it against every "
+            "published fit on the same surface-area basis."
+        ),
+        epilog=(
+            "CSV may carry its own metadata as '# key: value' header lines; "
+            "flags below override them. Surface area per droplet comes from one "
+            "of: --area-m2; --diameter-um with --particles-per-droplet; or "
+            "--concentration with --specific-surface-area and --droplet-volume."
+        ),
+    )
+    asy.add_argument("path", help="Path to the experiment file (.csv or .json)")
+    asy.add_argument(
+        "--area-basis",
+        choices=["BET", "geometric"],
+        default=None,
+        help="Required unless the file states it; decides which fits apply",
+    )
+    asy.add_argument(
+        "--area-m2", type=float, default=None, help="Surface area per droplet, m²"
+    )
+    asy.add_argument("--diameter-um", type=float, default=None, help="Particle diameter µm")
+    asy.add_argument(
+        "--particles-per-droplet", type=float, default=None, help="Particles per droplet"
+    )
+    asy.add_argument(
+        "--concentration", type=float, default=None, help="Suspension concentration g/L"
+    )
+    asy.add_argument(
+        "--specific-surface-area",
+        type=float,
+        default=None,
+        help="Specific surface area m²/g (usually BET)",
+    )
+    asy.add_argument(
+        "--droplet-volume", type=float, default=None, help="Droplet volume µL"
+    )
+    asy.add_argument("--material", default=None, help="What was measured")
+    asy.add_argument(
+        "--counting",
+        choices=["cumulative", "differential"],
+        default=None,
+        help="Whether the frozen column is cumulative (default) or per-step",
+    )
+    asy.add_argument(
+        "--confidence",
+        type=float,
+        default=0.95,
+        help="Confidence level for counting uncertainty (default 0.95)",
+    )
+    asy.add_argument(
+        "--no-compare",
+        action="store_true",
+        help="Skip the comparison against published fits",
+    )
+    asy.add_argument(
+        "--out", type=Path, default=None, help="Write the spectrum as CSV to this path"
+    )
+    asy.add_argument("--json", action="store_true", help="JSON output")
 
     val = sub.add_parser(
         "validate",
@@ -564,6 +630,119 @@ def _cmd_freeze(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_assay(args: argparse.Namespace) -> int:
+    from ina_sim.assay import (
+        AssayError,
+        build_spectrum,
+        compare_to_registry,
+        load_assay,
+    )
+
+    overrides = {
+        "area_basis": args.area_basis,
+        "surface_area_m2_per_droplet": args.area_m2,
+        "particle_diameter_um": args.diameter_um,
+        "particles_per_droplet": args.particles_per_droplet,
+        "concentration_g_per_l": args.concentration,
+        "specific_surface_area_m2_per_g": args.specific_surface_area,
+        "droplet_volume_ul": args.droplet_volume,
+        "material": args.material,
+        "counting": args.counting,
+    }
+    try:
+        assay = load_assay(args.path, overrides=overrides)
+        spectrum = build_spectrum(assay, confidence=args.confidence)
+    except AssayError as exc:
+        print(f"Could not read the experiment: {exc}", file=sys.stderr)
+        return 1
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    comparisons = [] if args.no_compare else compare_to_registry(spectrum)
+
+    if args.out:
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_text(spectrum.to_csv(), encoding="utf-8")
+        if not args.json:
+            print(f"Wrote spectrum to {args.out}")
+
+    if args.json:
+        payload = spectrum.as_dict()
+        payload["comparisons"] = [c.as_dict() for c in comparisons]
+        print(json.dumps(payload, indent=2))
+        return 0
+
+    meta = spectrum.metadata
+    print(f"{meta.get('material') or 'unnamed sample'}  [{spectrum.source_path}]")
+    print(f"  sha256:       {spectrum.source_sha256}")
+    print(f"  droplet area: {spectrum.area_m2:.4g} m²  ({spectrum.area_route})")
+    print(f"  area basis:   {spectrum.area_basis}")
+    print(
+        f"  resolvable:   ns {spectrum.ns_resolvable_min_m2:.3g} … "
+        f"{spectrum.ns_resolvable_max_m2:.3g} m⁻²  "
+        f"(set by the number of droplets)"
+    )
+    t50 = spectrum.t50_c()
+    print(f"  measured T50: {'—' if t50 is None else f'{t50:.2f} °C'}")
+    span = spectrum.temperature_span_c()
+    print(
+        f"  usable:       {len(spectrum.usable)}/{len(spectrum.points)} points"
+        + (f", {span[0]:.1f} … {span[1]:.1f} °C" if span else "")
+    )
+    print()
+    print(f"{'T °C':>7}  {'frozen':>9}  {'f':>6}  {'log10 ns':>9}  {'band':>15}  note")
+    print("-" * 92)
+    for p in spectrum.points:
+        frozen = f"{p.n_frozen}/{p.n_total}"
+        if p.log10_ns is None:
+            value, band = "—", ""
+        else:
+            value = f"{p.log10_ns:.2f}"
+            lo = "—" if not p.ns_low_m2 else f"{math.log10(p.ns_low_m2):.2f}"
+            hi = "—" if not p.ns_high_m2 else f"{math.log10(p.ns_high_m2):.2f}"
+            band = f"{lo} … {hi}"
+        flag = ""
+        if p.limit == "upper":
+            flag = "upper limit only"
+        elif p.limit == "lower":
+            flag = "saturated (lower limit)"
+        elif not p.within_dynamic_range:
+            flag = "outside resolvable window"
+        print(
+            f"{p.temperature_c:>7.2f}  {frozen:>9}  {p.frozen_fraction:>6.2f}  "
+            f"{value:>9}  {band:>15}  {flag}"
+        )
+    print()
+    print(
+        f"Bands are droplet-counting uncertainty at {spectrum.confidence:.0%} "
+        "(Wilson score interval). Temperature calibration and surface-area "
+        "uncertainty are NOT included and are usually larger."
+    )
+
+    if comparisons:
+        print()
+        print(f"Against published fits on the same ({spectrum.area_basis}) area basis:")
+        print(f"{'parameterization':<32} {'n':>4} {'bias':>7} {'rmse':>6} {'cover':>6}  verdict")
+        print("-" * 100)
+        for c in comparisons:
+            if c.n_compared == 0:
+                print(f"{c.parameterization_id:<32} {0:>4} {'—':>7} {'—':>6} {'—':>6}  {c.verdict}")
+                continue
+            print(
+                f"{c.parameterization_id:<32} {c.n_compared:>4} "
+                f"{c.bias_log10:>+7.2f} {c.rmse_log10:>6.2f} "
+                f"{c.coverage_fraction:>6.0%}  {c.verdict}"
+            )
+        print()
+        print(
+            "bias and rmse are in decades of log10(ns); cover is the fraction of "
+            "measured points inside that fit's own 1σ band. Fits on a different "
+            "area basis are excluded, not silently compared."
+        )
+    return 0
+
+
 def _cmd_validate(args: argparse.Namespace) -> int:
     from ina_sim.validation.runner import format_report, run_validation
 
@@ -627,6 +806,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_show(args)
     if args.cmd == "ns":
         return _cmd_ns(args)
+    if args.cmd == "assay":
+        return _cmd_assay(args)
     if args.cmd == "freeze":
         return _cmd_freeze(args)
     if args.cmd == "validate":

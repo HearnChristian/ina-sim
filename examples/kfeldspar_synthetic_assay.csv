@@ -1,0 +1,46 @@
+# SYNTHETIC DATA - NOT A MEASUREMENT.
+# Simulated by tools/make_example_assay.py (seed 20260725) from the
+# k_feldspar_harrison2019 fit, to demonstrate the file format and to round-trip
+# test the importer. Do not cite these numbers as an experiment.
+#
+# material: K-feldspar (simulated)
+# sample: synthetic-kga-demo
+# area_basis: BET
+# concentration_g_per_l: 0.05
+# droplet_volume_ul: 1.0
+# specific_surface_area_m2_per_g: 3.0
+# cooling_rate_k_per_min: 1.0
+# counting: cumulative
+# notes: 100 droplets simulated under Harrison et al. (2019)
+temperature_c,n_frozen,n_total
+-5,0,100
+-5.5,0,100
+-6,0,100
+-6.5,0,100
+-7,0,100
+-7.5,0,100
+-8,0,100
+-8.5,0,100
+-9,1,100
+-9.5,1,100
+-10,1,100
+-10.5,1,100
+-11,2,100
+-11.5,2,100
+-12,3,100
+-12.5,8,100
+-13,11,100
+-13.5,17,100
+-14,18,100
+-14.5,27,100
+-15,31,100
+-15.5,54,100
+-16,73,100
+-16.5,86,100
+-17,95,100
+-17.5,100,100
+-18,100,100
+-18.5,100,100
+-19,100,100
+-19.5,100,100
+-20,100,100

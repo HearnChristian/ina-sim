@@ -187,7 +187,76 @@ confers no ice nucleation ability.
 
 ---
 
-## 5. Rules the code enforces
+## 5. Importing your own experiment
+
+```bash
+ina-sim assay my_run.csv                    # invert + compare
+ina-sim assay my_run.csv --out spectrum.csv # spectrum for plotting
+ina-sim assay my_run.json --json            # everything, machine readable
+```
+
+A run is (temperature, droplets frozen, droplets total) plus the surface area
+each droplet carries. Rows may be cumulative (default) or per-step
+(`counting: differential`). CSV files may carry their own metadata as
+`# key: value` header lines, so one file records both the data and the
+conditions; CLI flags override them.
+
+**Surface area, three ways.** Labs record it differently, so all three are
+accepted and the route taken is reported back:
+
+| route | inputs | typical basis |
+|---|---|---|
+| explicit | `surface_area_m2_per_droplet` | either |
+| particles | `particle_diameter_um` × `particles_per_droplet` | geometric |
+| suspension | `concentration_g_per_l` × `droplet_volume_ul` × `specific_surface_area_m2_per_g` | BET |
+
+`area_basis` is **mandatory and has no default**. It decides which published
+fits the result may be compared against; a run that does not record it cannot be
+compared to anything without guessing.
+
+**Inversion.** Eq. (2), per temperature step. Then:
+
+**Counting uncertainty.** A frozen fraction is a binomial proportion from a
+finite number of droplets, so the band comes from the **Wilson score interval**
+rather than the normal approximation. Wilson is used specifically because the
+Wald interval collapses to zero width at `f → 0` and `f → 1` — exactly where a
+freezing curve begins and ends — and would claim perfect precision there.
+
+**One-sided points.** `f = 0` and `f = 1` have no central ns, but they still
+bound it from one side, so they are reported as `upper limit` / `lower limit`
+rather than dropped. A saturated assay (`f = 1`) cannot see higher site
+densities, and says so.
+
+**Dynamic range.** An assay of `N` droplets each carrying area `A` can only
+resolve
+
+```
+ns_min ≈ -ln(1 - 1/N) / A      (one droplet frozen)
+ns_max = ln(N) / A             (one droplet unfrozen)
+```
+
+Points outside that window are artefacts of the experiment's size, not
+properties of the sample, and are flagged. More droplets widen the window at
+both ends.
+
+**Comparison.** Each usable point is compared against every singular ns fit on
+the *same* area basis that covers that temperature, reporting bias, RMSE and max
+residual in decades, plus the fraction of points falling inside that fit's own
+σ band. Fits on a different basis, and rate parameterizations, are excluded
+rather than compared with a caveat.
+
+**What is not propagated.** Temperature calibration error and surface-area
+uncertainty are usually *larger* than the counting error, and INA-sim does not
+propagate them. Every spectrum prints that caveat. Vali's differential spectrum
+`k(T)` is also not computed.
+
+`examples/kfeldspar_synthetic_assay.csv` shows the file format. It is clearly
+labelled synthetic — simulated from the K-feldspar fit by
+`tools/make_example_assay.py` — and the round-trip test requires that importing
+it recovers the fit it came from (bias < 0.3 decades) while rejecting quartz and
+plagioclase.
+
+## 6. Rules the code enforces
 
 **No silent extrapolation.** Outside the temperature range its source fitted, a
 parameterization returns nothing. `--extrapolate` overrides this and stamps the
@@ -212,7 +281,7 @@ is `none`, and it says so in the CLI output.
 
 ---
 
-## 6. What this still is not
+## 7. What this still is not
 
 - Not a calibration to any specific field campaign or seeding operation.
 - Not a source of operational rates, dosages or precipitation forecasts.
@@ -221,7 +290,7 @@ is `none`, and it says so in the CLI output.
 - Not complete: eight parameterizations covering four library candidates. The
   gaps are visible on purpose (`ina-sim ns --list`).
 
-## 7. References
+## 8. References
 
 `ina-sim refs` prints the bibliography with DOIs and how each source was used.
 See also [REFERENCES.md](REFERENCES.md).

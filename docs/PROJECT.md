@@ -243,6 +243,7 @@ Key anchors (see also literature doc):
 
 | Date | Note |
 |------|------|
+| 2026-07-25 | **v0.3.1** `ina-sim assay`: import a real droplet-freezing run (CSV/JSON, 3 surface-area routes) → ns(T) with Wilson counting bands, one-sided limits at f=0/1, dynamic-range flags, and scored comparison against every fit on the same area basis; synthetic example + round-trip test |
 | 2026-07-25 | **v0.3.0** Empirical layer: published ns(T)/J(T) registry with DOIs, units and validity guards; Vali inversion + T50 + INP concentration; stochastic (Murray 2011) freezing; derived AgI fit from Marcolli 2016 Table 1 (sigma 1.8 decades, honestly reported); validation anchors in CI; KI reclassified as a soluble salt; 248 tests; mypy clean |
 | 2026-07-24 | **v0.2.1** Score scale fixed 0–1 (AgI peak=1); plotters+axes; T-sweep X label; empirical_claims extraction |
 | 2026-07-24 | UI refine: upload→Physics menu; Core agents only; tip toggle; INA/CCN plain language; larger sketch + axes |
