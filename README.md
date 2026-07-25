@@ -6,7 +6,7 @@
 
 **Methods (every equation, unit and source):** [`docs/METHODS.md`](docs/METHODS.md)
 **Validation (what this build reproduces):** [`docs/VALIDATION.md`](docs/VALIDATION.md)
-**Bibliography:** [`docs/REFERENCES.md`](docs/REFERENCES.md)
+**Bibliography:** [`docs/REFERENCES.md`](docs/REFERENCES.md) · **Wanted:** [`docs/PAPERS-WANTED.md`](docs/PAPERS-WANTED.md)
 **Living handbook:** [`docs/PROJECT.md`](docs/PROJECT.md) · **Demo:** [`docs/DEMO-SCRIPT.md`](docs/DEMO-SCRIPT.md)
 
 ## Two layers, kept apart on purpose

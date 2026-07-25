@@ -354,7 +354,8 @@ The remaining honest gaps, in order of what would help most:
    test whether the literature disagrees (see §7). Atkinson et al. (2013) for
    K-feldspar or Ullrich et al. (2017) for dust would fix this; neither is open
    access and neither is transcribed here, because a coefficient that cannot be
-   verified does not ship.
+   verified does not ship. See [PAPERS-WANTED.md](PAPERS-WANTED.md) for what
+   each one unlocks and how to obtain it.
 2. **Desert dust has no honest place on the relative scale.** Its only
    same-basis anchor is the AgI fit derived here, whose σ is 1.8 decades — too
    uncertain to anchor anything. It stays registry-only until a better AgI
