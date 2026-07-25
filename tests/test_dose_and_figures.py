@@ -258,3 +258,139 @@ def test_cli_figures_writes_a_file(tmp_path):
     assert proc.returncode == 0, proc.stderr
     assert out.is_file()
     assert out.read_text(encoding="utf-8").count("<svg") >= 8
+
+
+# --- The fitted-range boundary: no silent substitution ---------------------
+#
+# Regression tests for a real defect shipped in v0.3.4. A measured material
+# outside its fitted range fell back to the heuristic-derived ns, so n_INP for
+# K-feldspar jumped from 2.2e-7 to 1.0e+1 per litre between -3.5 and -3.0 °C -
+# seven orders of magnitude, from a silent change of ns source. A temperature
+# sweep across that boundary looked like noise, because it was.
+
+
+def test_measured_material_outside_its_range_returns_nothing():
+    result = act(measured_ns_m2=None, is_measured_material=True)
+    assert result.available is False
+    assert result.activation_probability is None
+    assert result.n_inp_per_litre is None
+    assert result.ns_source == "out_of_fitted_range"
+    assert "deliberately NOT substituted" in result.note
+
+
+def test_unmeasured_material_still_uses_the_convention():
+    """The fallback is right for materials nobody measured - only wrong for
+    measured ones outside their range."""
+    result = act(measured_ns_m2=None, is_measured_material=False)
+    assert result.available is True
+    assert result.ns_source == "heuristic_reference"
+
+
+def test_no_jump_at_the_edge_of_a_fitted_range():
+    """Walk across K-feldspar's warm limit; every step either keeps the same
+    ns source or goes to no-value. It must never swap source and keep a number."""
+    param = __import__(
+        "ina_sim.physics.ns", fromlist=["get_parameterization"]
+    ).get_parameterization("k_feldspar_harrison2019")
+    edge = param.t_max_c
+    previous = None
+    for offset in (-1.0, -0.5, -0.1, 0.1, 0.5, 1.0):
+        block = screen_one(
+            get_candidate("k_feldspar"), Conditions(temperature_c=edge + offset)
+        ).details["activation"]
+        if block["n_inp_per_litre"] is None:
+            previous = None
+            continue
+        assert block["ns_source"] == "measured"
+        if previous is not None:
+            ratio = block["n_inp_per_litre"] / previous
+            assert 0.1 < ratio < 10.0, "n_INP jumped by more than a decade in 0.5 °C"
+        previous = block["n_inp_per_litre"]
+
+
+def test_sweep_gives_gaps_not_garbage_outside_the_fitted_range():
+    """The sweep must emit null where a measured material has no value, so the
+    plot breaks the line instead of drawing a spike."""
+    from ina_sim.library.loader import load_candidates
+    from ina_sim.screen.rank import temperature_sweep
+
+    points = temperature_sweep(
+        list(load_candidates(include_uploads=False)), t_min=-30.0, t_max=0.0, step=2.0
+    )
+    warm = next(p for p in points if p["T_c"] == 0.0)
+    row = next(r for r in warm["rankings"] if r["id"] == "k_feldspar")
+    assert row["n_inp_per_litre"] is None
+    assert row["activation_probability"] is None
+    assert row["relative_ina"] is not None  # the score is always defined
+
+
+def test_measured_inp_is_monotonic_inside_the_fitted_range():
+    """Within its range a measured material's delivered INP must rise
+    monotonically as it cools - ns does, so this must too."""
+    from ina_sim.library.loader import load_candidates
+    from ina_sim.screen.rank import temperature_sweep
+
+    points = temperature_sweep(
+        [c for c in load_candidates(include_uploads=False) if c.id == "k_feldspar"],
+        t_min=-30.0,
+        t_max=-6.0,
+        step=2.0,
+    )
+    pairs = [
+        (p["T_c"], p["rankings"][0]["n_inp_per_litre"])
+        for p in points
+        if p["rankings"][0]["n_inp_per_litre"] is not None
+    ]
+    assert len(pairs) > 5
+    # Sort by temperature explicitly rather than trusting the sweep's own
+    # direction, then require delivered INP to rise strictly as it gets colder.
+    by_temp = sorted(pairs, key=lambda pair: -pair[0])  # warm -> cold
+    values = [v for _, v in by_temp]
+    assert values == sorted(values), "delivered INP does not rise on cooling"
+    assert values[-1] > values[0] * 100, "cooling 24 K should change INP a lot"
+
+
+def test_small_probabilities_are_not_rounded_to_zero():
+    """A displayed probability of 0 beside a non-zero n_INP was the second half
+    of the same defect."""
+    block = screen_one(
+        get_candidate("k_feldspar"), Conditions(temperature_c=-5.0)
+    ).details["activation"]
+    assert 0 < block["activation_probability"] < 1e-6
+    assert block["n_inp_per_litre"] > 0
+
+
+def test_a_rate_coefficient_is_never_used_as_a_site_density():
+    """J is cm^-2 s^-1; n_s is m^-2. Kaolinite and pure water are measured as
+    rates, and feeding those to the activation formula produced a plausible
+    looking curve made of a unit error."""
+    for candidate_id, temperature in (("kaolinite", -30.0), ("water_control", -37.0)):
+        block = screen_one(
+            get_candidate(candidate_id), Conditions(temperature_c=temperature)
+        ).details["activation"]
+        assert block["ns_source"] == "rate_not_density"
+        assert block["n_inp_per_litre"] is None
+        assert block["activation_probability"] is None
+        assert "dwell time" in block["note"]
+
+
+def test_every_activation_source_is_one_of_the_four_declared_states():
+    from ina_sim.library.loader import load_candidates
+
+    allowed = {
+        "measured",
+        "out_of_fitted_range",
+        "rate_not_density",
+        "heuristic_reference",
+    }
+    for candidate in load_candidates(include_uploads=False):
+        for temperature in (-2.0, -10.0, -20.0, -30.0, -38.0):
+            block = screen_one(
+                candidate, Conditions(temperature_c=temperature)
+            ).details["activation"]
+            assert block["ns_source"] in allowed
+            # A value and "no value" must agree with each other.
+            assert (block["n_inp_per_litre"] is None) == (
+                block["activation_probability"] is None
+            )
+            assert block["available"] == (block["activation_probability"] is not None)

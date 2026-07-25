@@ -14,9 +14,15 @@ so it scales with surface area, as d^2. Marcolli et al. (2016) measured a ~28 K
 swing in freezing temperature between 20 nm and 40 nm AgI particles; a model
 where diameter does nothing cannot represent that.
 
-For materials with a published parameterization, ns(T) is the measured value.
-For the rest there is no ns, so the heuristic score is **reinterpreted** as the
-per-particle activation probability at a 1 um reference diameter:
+For materials with a published parameterization, ns(T) is the measured value -
+and **only** where that parameterization is valid. A measured material outside
+its fitted temperature range gets no activation at all, exactly as it gets no
+ns: falling back to the heuristic there produced a seven-order-of-magnitude jump
+at the edge of the fit, which is worse than no answer.
+
+For materials that were never measured there is no ns, so the heuristic score is
+**reinterpreted** as the per-particle activation probability at a 1 um reference
+diameter:
 
     ns_eff(T) = -ln(1 - eta(T)) / (pi * d_ref^2)
 
@@ -68,14 +74,18 @@ class Activation:
     temperature_c: float
     particle_diameter_um: float
     particle_area_m2: float
-    ns_m2: float
-    ns_source: str  # "measured" | "heuristic_reference"
-    activation_probability: float
+    ns_m2: float | None
+    ns_source: str  # measured | heuristic_reference | out_of_fitted_range
+    activation_probability: float | None
     seeding_density_per_l: float
-    n_inp_per_litre: float
+    n_inp_per_litre: float | None
     reference_diameter_um: float
     citation: str | None = None
     note: str | None = None
+
+    @property
+    def available(self) -> bool:
+        return self.activation_probability is not None
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -84,7 +94,10 @@ class Activation:
             "particle_area_m2": self.particle_area_m2,
             "ns_m2": self.ns_m2,
             "ns_source": self.ns_source,
-            "activation_probability": round(self.activation_probability, 6),
+            "available": self.available,
+            # Not rounded: activation probabilities run down to 1e-12 and
+            # rounding produced a displayed zero next to a non-zero n_INP.
+            "activation_probability": self.activation_probability,
             "seeding_density_per_l": self.seeding_density_per_l,
             "n_inp_per_litre": self.n_inp_per_litre,
             "reference_diameter_um": self.reference_diameter_um,
@@ -118,14 +131,23 @@ def activation(
     particle_diameter_um: float,
     seeding_density_per_l: float,
     measured_ns_m2: float | None = None,
+    is_measured_material: bool = False,
+    measured_quantity: str = "ns",
     citation: str | None = None,
     reference_diameter_um: float = REFERENCE_DIAMETER_UM,
 ) -> Activation:
     """Activation probability and INP concentration for one candidate.
 
-    `measured_ns_m2` is used when a published parameterization covers the
-    material at this temperature; otherwise the heuristic score supplies an
-    effective ns, and `ns_source` records which happened.
+    Four outcomes, and which one happened is always recorded in `ns_source`:
+
+        measured             an ns parameterization covers this material here
+        out_of_fitted_range  it is measured, but not at this temperature, so no
+                             value is returned - the heuristic is NOT substituted
+        rate_not_density     it is measured as a nucleation rate coefficient,
+                             which is not a site density and cannot be turned
+                             into one without a dwell time
+        heuristic_reference  nobody measured this material, so the score is read
+                             as an activation probability at the reference size
     """
     if particle_diameter_um <= 0:
         raise ValueError("particle_diameter_um must be positive")
@@ -133,6 +155,39 @@ def activation(
         raise ValueError("seeding_density_per_l must be non-negative")
 
     area = sphere_surface_area_m2(micrometres_to_metres(particle_diameter_um))
+
+    def _unavailable(source: str, note: str) -> Activation:
+        return Activation(
+            temperature_c=temperature_c,
+            particle_diameter_um=particle_diameter_um,
+            particle_area_m2=area,
+            ns_m2=None,
+            ns_source=source,
+            activation_probability=None,
+            seeding_density_per_l=seeding_density_per_l,
+            n_inp_per_litre=None,
+            reference_diameter_um=reference_diameter_um,
+            citation=citation,
+            note=note,
+        )
+
+    if is_measured_material and measured_quantity != "ns":
+        # J [cm^-2 s^-1] is not n_s [m^-2]. Feeding one to the other is exactly
+        # the unit confusion this package exists to prevent.
+        return _unavailable(
+            "rate_not_density",
+            "this material is measured as a nucleation rate coefficient, not a "
+            "site density; an activation probability from a rate needs a dwell "
+            "time, which a steady-state screen does not have",
+        )
+
+    if is_measured_material and not (measured_ns_m2 and measured_ns_m2 > 0):
+        return _unavailable(
+            "out_of_fitted_range",
+            "this material is measured, but not at this temperature; the "
+            "heuristic score is deliberately NOT substituted, because doing so "
+            "jumps by orders of magnitude at the edge of the fitted range",
+        )
 
     if measured_ns_m2 is not None and measured_ns_m2 > 0:
         ns = measured_ns_m2

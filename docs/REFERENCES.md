@@ -4,7 +4,7 @@
 
 Every empirical number in INA-sim traces to an entry here. `access` records how it entered the repo: **verbatim** (equation transcribed from the source text), **derived** (computed here from the source's tabulated measurements, with the script named), or **textbook** (standard constant or relation).
 
-Generated from INA-sim 0.3.5. Also available as `ina-sim refs`.
+Generated from INA-sim 0.4.0. Also available as `ina-sim refs`.
 
 ## Harrison et al. (2019)
 

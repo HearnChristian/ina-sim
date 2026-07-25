@@ -42,3 +42,10 @@ experiments/*
 # Session uploads (local builder feed)
 data/uploads/*
 !data/uploads/.gitkeep
+
+# Run audit log — local operational record, not source
+data/runs/*
+!data/runs/.gitkeep
+
+# Generated figure pages
+reference-figures.html

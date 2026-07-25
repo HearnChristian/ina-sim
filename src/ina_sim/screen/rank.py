@@ -80,6 +80,8 @@ def screen_one(candidate: Candidate, conditions: Conditions) -> ScreenResult:
         particle_diameter_um=conditions.particle_diameter_um,
         seeding_density_per_l=conditions.seeding_density_per_l,
         measured_ns_m2=ns_block.get("value"),
+        is_measured_material=evidence["evidence"] == EVIDENCE_MEASURED,
+        measured_quantity=str(ns_block.get("quantity", "ns")),
         citation=ns_block.get("citation"),
     )
 
@@ -235,6 +237,17 @@ def temperature_sweep(
                         "efficiency": round(r.overall_efficiency, 4),
                         "cnt_score": r.details.get("cnt_score"),
                         "pathway": r.details.get("pathway"),
+                        # Size- and dose-dependent quantities, so a sweep of
+                        # these actually responds to the diameter and density
+                        # inputs rather than being a fixed curve.
+                        "activation_probability": (
+                            (r.details.get("activation") or {}).get(
+                                "activation_probability"
+                            )
+                        ),
+                        "n_inp_per_litre": (
+                            (r.details.get("activation") or {}).get("n_inp_per_litre")
+                        ),
                     }
                     for r in ranked
                 ],

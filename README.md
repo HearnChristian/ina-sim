@@ -30,6 +30,8 @@ ina-sim compare --range=-35:-10:5  # how far apart are the published fits?
 ina-sim rank --temp -20            # every measured material, heuristic layer off
 ina-sim figures                    # 9 static reference plots, self-contained HTML
 ina-sim uncertainty --id desert_dust_niemand2012 --mode 1.0:0.8:1.9 --threshold 1.0
+ina-sim scenario --id agi_marcolli2016_derived --payload-kg 1 --diameter 0.1 --temp -12
+ina-sim history --diff 3 7         # why did the number move?
 ina-sim freeze --id k_feldspar_harrison2019 --diameter 1 --curve
 ina-sim validate                   # does this build still reproduce its sources?
 ina-sim refs                       # the bibliography behind every number
@@ -80,6 +82,8 @@ See [`docs/METHODS.md` §5](docs/METHODS.md) for the file format and
 | **Size and dose** | activation probability `1 − exp(−ns·πd²)` and INP concentration `N · P_act` — the particle-size and seeding-density inputs now change the answer |
 | **Reference figures** | 9 static SVG plots built from the registry (`ina-sim figures`, or GUI ▸ Physics ▸ Reference figures) |
 | **Monte Carlo uncertainty** | `ina-sim uncertainty` — distribution of n_INP, P(above threshold), and a variance decomposition naming which input owns the spread |
+| **Scenario / decision layer** | `ina-sim scenario` — payload mass → delivered INP with a band, a go/no-go probability, and an explicit claims guardrail; runs backwards to solve for payload |
+| **Run audit trail** | `ina-sim history` — hash-chained record of every run with a parameterization fingerprint, so a moved number is attributed to changed conditions or changed science |
 | **Droplet-freezing observables** | frozen fraction, Vali inversion, T50, INP concentration, cooling-ramp integration |
 | **Singular + stochastic descriptions** | Vali (1971) and Murray et al. (2011), reported side by side |
 | **Validation suite** | 5 anchors against published claims, run in CI (`ina-sim validate`) |
@@ -137,6 +141,8 @@ src/ina_sim/
                  dose.py      activation probability, INP concentration
                  uncertainty.py  Monte Carlo + variance decomposition
   figures/       svg.py (stdlib plotting) + reference.py + page.py
+  scenario.py    payload → delivered INP → go/no-go + claims guardrail
+  audit.py       append-only hash-chained run log
   assay/         ingest.py (CSV/JSON + 3 surface-area routes)
                  spectrum.py  Vali inversion, Wilson bands, registry comparison
   validation/    anchors.yaml + runner (ina-sim validate)
@@ -147,8 +153,9 @@ examples/        kfeldspar_synthetic_assay.csv (labelled synthetic template)
 tools/           fit_agi_ns.py (derives the AgI fit), gen_docs.py,
                  make_example_assay.py
 docs/            METHODS.md, VALIDATION.md, REFERENCES.md, PROJECT.md
-tests/           404 tests: units, registry, freezing physics, assay import,
+tests/           441 tests: units, registry, freezing physics, assay import,
                  aerosol, intercomparison, dose, uncertainty,
+                 scenario, audit,
                  figures, validation, references
 ```
 

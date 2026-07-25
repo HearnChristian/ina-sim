@@ -326,6 +326,70 @@ def _build_parser() -> argparse.ArgumentParser:
     unc.add_argument("--seed", type=int, default=20260725, help="Random seed")
     unc.add_argument("--json", action="store_true", help="JSON output")
 
+    scn = sub.add_parser(
+        "scenario",
+        help="Payload in, delivered INP and a go/no-go probability out",
+        description=(
+            "Compose payload mass, particle size, cloud volume and temperature "
+            "into a delivered INP concentration with its uncertainty, the "
+            "probability of clearing a threshold, and an explicit statement of "
+            "what the result does and does not support claiming. Can be run "
+            "backwards with --target-probability to solve for the payload."
+        ),
+    )
+    scn.add_argument("--id", dest="param_id", required=True, help="Parameterization id")
+    scn.add_argument("--payload-kg", type=float, default=None, help="Agent mass, kg")
+    scn.add_argument(
+        "--target-probability",
+        type=float,
+        default=None,
+        help="Instead of a payload, solve for the mass reaching this confidence",
+    )
+    scn.add_argument(
+        "--density", type=float, default=None, help="Agent density g/cm³ (from library if known)"
+    )
+    scn.add_argument(
+        "--diameter", type=float, default=0.1, help="Median particle diameter µm"
+    )
+    scn.add_argument(
+        "--sigma-g", type=float, default=1.8, help="Geometric σ of the size distribution"
+    )
+    scn.add_argument(
+        "--cloud-volume", type=float, default=1e9, help="Effective seeded cloud volume m³"
+    )
+    scn.add_argument("--temp", type=float, default=-12.0, help="Temperature °C")
+    scn.add_argument(
+        "--threshold", type=float, default=1.0, help="INP per litre to clear (default 1.0)"
+    )
+    scn.add_argument("--cost-per-kg", type=float, default=None, help="Agent cost per kg")
+    scn.add_argument("--samples", type=int, default=4000, help="Monte Carlo samples")
+    scn.add_argument("--seed", type=int, default=20260725, help="Random seed")
+    scn.add_argument("--no-log", action="store_true", help="Do not write to the run log")
+    scn.add_argument("--json", action="store_true", help="JSON output")
+
+    hist = sub.add_parser(
+        "history",
+        help="The append-only record of previous runs",
+        description=(
+            "Every scenario, screen and uncertainty run is appended to a hash-"
+            "chained log with the code version and a fingerprint of the "
+            "parameterization file, so a number that moved can be attributed to "
+            "changed conditions, changed science, or neither."
+        ),
+    )
+    hist.add_argument("--limit", type=int, default=15, help="How many runs to show")
+    hist.add_argument("--verify", action="store_true", help="Recompute the hash chain")
+    hist.add_argument(
+        "--diff",
+        nargs=2,
+        type=int,
+        metavar=("A", "B"),
+        default=None,
+        help="Explain the difference between two run indices",
+    )
+    hist.add_argument("--path", type=Path, default=None, help="Run log location")
+    hist.add_argument("--json", action="store_true", help="JSON output")
+
     val = sub.add_parser(
         "validate",
         help="Check this build against published claims",
@@ -1242,6 +1306,295 @@ def _cmd_uncertainty(args: argparse.Namespace) -> int:
     return 0
 
 
+def _log_run(command: str, inputs: dict, outputs: dict) -> None:
+    """Append to the audit log, never letting a log failure break a run."""
+    try:
+        from ina_sim.audit import append_run
+        from ina_sim.validation.runner import run_validation
+
+        append_run(
+            command,
+            inputs=inputs,
+            outputs=outputs,
+            validation_ok=run_validation().ok,
+        )
+    except Exception:  # noqa: BLE001 - logging must never be fatal
+        pass
+
+
+def _cmd_scenario(args: argparse.Namespace) -> int:
+    from ina_sim.library.loader import get_candidate
+    from ina_sim.physics.ns import get_parameterization
+    from ina_sim.scenario import ScenarioResult, run_scenario, solve_payload
+
+    assert ScenarioResult is not None  # imported for the annotation below
+
+    if (args.payload_kg is None) == (args.target_probability is None):
+        print(
+            "Give exactly one of --payload-kg (forward) or --target-probability "
+            "(solve for the payload).",
+            file=sys.stderr,
+        )
+        return 1
+
+    try:
+        param = get_parameterization(args.param_id)
+    except KeyError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    density = args.density
+    if density is None:
+        for candidate_id in param.applies_to:
+            try:
+                candidate = get_candidate(candidate_id)
+            except KeyError:
+                continue
+            if candidate.density_g_cm3:
+                density = candidate.density_g_cm3
+                break
+    if density is None:
+        print(
+            f"No density known for {param.material_key}; pass --density in g/cm³. "
+            "The payload cannot be turned into a particle count without it.",
+            file=sys.stderr,
+        )
+        return 1
+
+    common = dict(
+        density_g_cm3=density,
+        median_diameter_um=args.diameter,
+        geometric_sd=args.sigma_g,
+        cloud_volume_m3=args.cloud_volume,
+        temperature_c=args.temp,
+        threshold_per_litre=args.threshold,
+        cost_per_kg=args.cost_per_kg,
+        seed=args.seed,
+    )
+    result: "ScenarioResult | None"
+    try:
+        if args.payload_kg is not None:
+            result = run_scenario(
+                param, payload_kg=args.payload_kg, samples=args.samples, **common
+            )
+        else:
+            result = solve_payload(
+                param, target_probability=args.target_probability, **common
+            )
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    if result is None:
+        print(
+            f"No payload reaches P > {args.target_probability:.0%} of exceeding "
+            f"{args.threshold:g} INP/L at {args.temp:g} °C with this material. "
+            "The temperature is the binding constraint, not the dose.",
+        )
+        return 0
+
+    body = result.as_dict()
+    if not args.no_log:
+        _log_run(
+            "scenario",
+            {
+                "parameterization": result.parameterization_id,
+                "T_c": result.temperature_c,
+                "payload_kg": round(result.payload_kg, 6),
+                "median_diameter_um": result.median_diameter_um,
+                "geometric_sd": result.geometric_sd,
+                "cloud_volume_m3": result.cloud_volume_m3,
+                "threshold_per_litre": result.threshold_per_litre,
+                "seed": args.seed,
+            },
+            {
+                "n_inp_p50": body["delivered"]["p50"],
+                "n_inp_p05": body["delivered"]["p05"],
+                "n_inp_p95": body["delivered"]["p95"],
+                "probability_above_threshold": body["probability_above_threshold"],
+                "solved_for_payload": result.solved_for_payload,
+            },
+        )
+
+    if args.json:
+        print(json.dumps(body, indent=2))
+        return 0
+
+    delivered = body["delivered"]
+    print(f"{result.material}  [{result.parameterization_id}]  {result.citation}")
+    print()
+    if result.solved_for_payload:
+        print(
+            f"To reach P ≥ {result.target_probability:.0%} of exceeding "
+            f"{result.threshold_per_litre:g} INP/L:"
+        )
+        print(f"  PAYLOAD REQUIRED   {result.payload_kg:.4g} kg")
+    else:
+        print(f"  payload            {result.payload_kg:.4g} kg")
+    if result.total_cost is not None:
+        print(f"  cost               {result.total_cost:,.2f} at {result.cost_per_kg:,.2f}/kg")
+    print(f"  particle size      {result.median_diameter_um:g} µm, σ_g {result.geometric_sd:g}")
+    print(f"  particles          {result.particle_count:.3g}")
+    print(f"  cloud volume       {result.cloud_volume_m3:.3g} m³")
+    print(f"  loading            {result.number_per_cm3:.4g} cm⁻³")
+    print(f"  temperature        {result.temperature_c:g} °C")
+    print()
+    print("Delivered INP per litre")
+    print(f"{'  5th':>10} {'16th':>10} {'median':>10} {'84th':>10} {'95th':>10}")
+    print("-" * 54)
+    print(
+        f"{delivered['p05']:>10.3g} {delivered['p16']:>10.3g} {delivered['p50']:>10.3g} "
+        f"{delivered['p84']:>10.3g} {delivered['p95']:>10.3g}"
+    )
+    print()
+    prob = body["probability_above_threshold"]
+    verdict = "GO" if prob >= 0.9 else ("MARGINAL" if prob >= 0.5 else "NO")
+    print(
+        f"P(delivered > {result.threshold_per_litre:g} /L) = {prob:.1%}   →   {verdict}"
+    )
+    print()
+    print("Where the uncertainty comes from:")
+    for name, share in body["variance_share"].items():
+        print(f"  {name:<26} {share:>6.1%} {'█' * int(round(share * 30))}")
+    print()
+    print("This result supports saying:")
+    for line in result.claims["supported"]:
+        print(f"  ✓ {line}")
+    print("Only with these stated alongside:")
+    for line in result.claims["conditional"]:
+        print(f"  ! {line}")
+    print("It does NOT support:")
+    for line in result.claims["refused"]:
+        print(f"  ✗ {line}")
+    print()
+    for warning in result.warnings:
+        print(f"  - {warning}")
+    return 0
+
+
+def _cmd_history(args: argparse.Namespace) -> int:
+    from ina_sim.audit import (
+        AuditError,
+        diff_runs,
+        log_path,
+        read_records,
+        summarise,
+        verify_chain,
+    )
+
+    target = args.path or log_path()
+    try:
+        records = read_records(target)
+    except AuditError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    if not records:
+        print(f"No runs logged yet at {target}.")
+        return 0
+
+    if args.diff:
+        a, b = args.diff
+        by_index = {r.index: r for r in records}
+        missing = [i for i in (a, b) if i not in by_index]
+        if missing:
+            print(f"No such run index: {missing}", file=sys.stderr)
+            return 1
+        report = diff_runs(by_index[a], by_index[b])
+        if args.json:
+            print(json.dumps(report, indent=2))
+            return 0
+        print(f"run {a} ({report['before']['at']})  →  run {b} ({report['after']['at']})")
+        print(f"  verdict: {report['verdict']}")
+        print(f"  parameterizations changed: {report['registry_changed']}")
+        print(f"  code changed: {report['code_changed']}")
+        for scope in ("inputs", "outputs"):
+            entries = report["changed"][scope]
+            if not entries:
+                print(f"  {scope}: unchanged")
+                continue
+            print(f"  {scope}:")
+            for key, change in entries.items():
+                print(f"    {key}: {change['before']} → {change['after']}")
+        return 0
+
+    problems = verify_chain(records)
+    if args.verify:
+        if args.json:
+            print(
+                json.dumps(
+                    {
+                        "path": str(target),
+                        "records": len(records),
+                        "intact": not problems,
+                        "problems": [
+                            {"index": p.index, "kind": p.kind, "detail": p.detail}
+                            for p in problems
+                        ],
+                    },
+                    indent=2,
+                )
+            )
+            return 0 if not problems else 1
+        if not problems:
+            print(f"Chain intact: {len(records)} records at {target}.")
+            print("Every record's hash matches its contents and its predecessor.")
+            return 0
+        print(f"CHAIN BROKEN: {len(problems)} problem(s) in {target}", file=sys.stderr)
+        for problem in problems:
+            print(f"  record {problem.index} [{problem.kind}]: {problem.detail}", file=sys.stderr)
+        return 1
+
+    summary = summarise(records)
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "summary": summary,
+                    "intact": not problems,
+                    "records": [r.as_dict() for r in records[-args.limit :]],
+                },
+                indent=2,
+            )
+        )
+        return 0
+
+    print(f"{summary['n_runs']} runs at {target}")
+    print(
+        f"  {summary['distinct_registry_versions']} parameterization version(s) used; "
+        f"{summary['runs_on_current_registry']} run(s) on the current one"
+    )
+    if summary["runs_with_failing_validation"]:
+        print(
+            f"  WARNING: {summary['runs_with_failing_validation']} run(s) were made "
+            "while validation was failing"
+        )
+    if problems:
+        print(f"  WARNING: hash chain has {len(problems)} problem(s) — run --verify")
+    print()
+    print(f"{'idx':>4}  {'when':<20} {'command':<12} {'registry':<10} result")
+    print("-" * 96)
+    for record in records[-args.limit :]:
+        outputs = record.outputs
+        if "probability_above_threshold" in outputs:
+            summary_text = (
+                f"P={outputs['probability_above_threshold']:.0%} "
+                f"n_INP={outputs.get('n_inp_p50', float('nan')):.3g}/L"
+            )
+        elif "top_candidate" in outputs:
+            summary_text = f"top={outputs['top_candidate']}"
+        else:
+            summary_text = ", ".join(f"{k}={v}" for k, v in list(outputs.items())[:2])
+        flag = "" if record.validation_ok is not False else "  [VALIDATION FAILING]"
+        print(
+            f"{record.index:>4}  {record.timestamp_utc[:19]:<20} {record.command:<12} "
+            f"{record.registry_fingerprint[:8]:<10} {summary_text}{flag}"
+        )
+    print()
+    print("`ina-sim history --diff A B` explains why two runs differ.")
+    return 0
+
+
 def _cmd_validate(args: argparse.Namespace) -> int:
     from ina_sim.validation.runner import format_report, run_validation
 
@@ -1317,6 +1670,10 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_figures(args)
     if args.cmd == "uncertainty":
         return _cmd_uncertainty(args)
+    if args.cmd == "scenario":
+        return _cmd_scenario(args)
+    if args.cmd == "history":
+        return _cmd_history(args)
     if args.cmd == "freeze":
         return _cmd_freeze(args)
     if args.cmd == "validate":

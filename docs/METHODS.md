@@ -382,9 +382,14 @@ because the model was thin. The second pair is now fixed.
 | pressure | none on nucleation | sets the parcel's water inventory instead |
 
 **The size fix.** For materials with a parameterization the activation
-probability uses the measured ns(T). For the rest there is no ns, so the
-heuristic score is *reinterpreted* as the activation probability of a 1 µm
-particle:
+probability uses the measured ns(T), **and only inside that fit's temperature
+range**. Outside it, no activation is reported: falling back to the heuristic
+there produced a seven-order-of-magnitude jump at the edge of the fit, which is
+worse than no answer. A material measured as a *rate* coefficient (kaolinite,
+pure water) reports no activation either — J is cm⁻² s⁻¹, not a site density,
+and converting one to the other needs a dwell time a steady-state screen does
+not have. For materials nobody measured, the heuristic score is *reinterpreted*
+as the activation probability of a 1 µm particle:
 
 ```
 ns_eff(T) = -ln(1 - η(T)) / (π·d_ref²)                    (9)
@@ -473,7 +478,67 @@ knowing *before* spending money on instruments.
   extrapolated.** The discarded fraction is reported, and a run near the edge of
   a fit warns that the distribution is conditioned on being in range.
 
-## 11. Rules the code enforces
+## 11. Scenario: payload in, decision out
+
+```bash
+ina-sim scenario --id agi_marcolli2016_derived --payload-kg 1 --diameter 0.1 \
+  --temp -12 --threshold 1.0 --cost-per-kg 300
+ina-sim scenario --id agi_marcolli2016_derived --target-probability 0.9 ...
+```
+
+The composition every other command was building towards:
+
+```
+payload mass ─(density, size distribution)→ particle count
+particle count ─(cloud volume)→ number concentration
+number concentration ─(ns(T), activation integral)→ n_INP per litre
+n_INP ─(Monte Carlo)→ distribution, and P(above threshold)
+```
+
+Particle count comes from the Hatch-Choate third moment,
+`<V> = (π/6) D_g³ exp(4.5 ln²σ_g)`, so halving the median diameter gives eight
+times the particles from the same mass.
+
+Run backwards with `--target-probability`: bisection on payload mass, in log
+space, for the mass that reaches a stated confidence of clearing the threshold.
+When no payload reaches it the answer is **none** rather than an absurd number —
+that means temperature is the binding constraint, not dose.
+
+**The assumption that dominates every number here:** the payload is taken to mix
+uniformly through the whole stated cloud volume. Real plumes are narrow and
+sheared and reach a fraction of a cloud, so every delivery figure is an **upper
+bound**. INA-sim has no transport model and does not pretend to.
+
+**Claims guardrail.** Every scenario prints what the result does and does not
+support saying: it supports an INP concentration with a band and a threshold
+probability; it does **not** support any statement about precipitation, about
+operational efficacy or dosage, or that seeding caused an observed outcome.
+
+## 12. Run audit trail
+
+```bash
+ina-sim history            # what was run, when, against which science
+ina-sim history --verify   # recompute the hash chain
+ina-sim history --diff 3 7 # why did the number move?
+```
+
+Scenario runs are appended to `data/runs/log.jsonl` with their inputs, headline
+outputs, code version, validation status, and a **fingerprint of
+`parameterizations.yaml`**. That last field is what makes the log worth keeping:
+when a number moves between two runs, `--diff` attributes it to
+
+- *the conditions changed* — different temperature, payload, aerosol;
+- *the science changed* — a parameterization was edited between the runs;
+- *neither*, which should be impossible and is worth investigating.
+
+Records are hash-chained, so editing or removing one breaks every hash after it
+and `--verify` says which. This is tamper **evident**, not tamper proof: anyone
+who can rewrite the file can recompute the chain. It defends against accidents
+and quiet edits, which is what actually happens.
+
+Disable with `INA_SIM_NO_RUN_LOG=1`; relocate with `INA_SIM_RUN_LOG=/path`.
+
+## 13. Rules the code enforces
 
 **No silent extrapolation.** Outside the temperature range its source fitted, a
 parameterization returns nothing. `--extrapolate` overrides this and stamps the
@@ -498,7 +563,7 @@ is `none`, and it says so in the CLI output.
 
 ---
 
-## 12. What this still is not
+## 14. What this still is not
 
 - Not a calibration to any specific field campaign or seeding operation.
 - Not a source of operational rates, dosages or precipitation forecasts.
@@ -509,7 +574,7 @@ is `none`, and it says so in the CLI output.
   the literature disagrees. The gaps are visible on purpose
   (`ina-sim ns --list`, `ina-sim compare`).
 
-## 13. References
+## 15. References
 
 `ina-sim refs` prints the bibliography with DOIs and how each source was used.
 See also [REFERENCES.md](REFERENCES.md).

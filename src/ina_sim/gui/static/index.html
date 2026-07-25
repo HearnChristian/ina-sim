@@ -485,17 +485,17 @@
         <div class="menu" data-menu="view">
           <button type="button">View</button>
           <div class="menu-panel">
-            <button type="button" data-cmd="toggle-tips">Cursor tips: <span id="tips_state">off</span></button>
-            <button type="button" data-cmd="toggle-live">Live on release: <span id="live_state">off</span></button>
+            <button type="button" data-cmd="reference-figures">Reference figures…</button>
             <div class="sep"></div>
+            <button type="button" data-cmd="toggle-live">Live on release: <span id="live_state">off</span></button>
             <button type="button" data-cmd="run">Run screen <span class="accel">Enter</span></button>
-            <button type="button" data-cmd="sweep">Temperature sweep</button>
           </div>
         </div>
         <div class="menu" data-menu="physics">
           <button type="button">Physics</button>
           <div class="menu-panel">
-            <button type="button" data-cmd="reference-figures">Reference figures…</button>
+            <button type="button" data-cmd="sweep">Temperature sweep</button>
+            <button type="button" data-cmd="cycle-sweep-quantity">Sweep plots: <span id="sweep_quantity_label">relative score</span></button>
             <div class="sep"></div>
             <button type="button" data-cmd="upload-dialog">Upload molecule…</button>
             <div class="sep"></div>
@@ -507,6 +507,8 @@
         <div class="menu" data-menu="help">
           <button type="button">Help</button>
           <div class="menu-panel">
+            <button type="button" data-cmd="toggle-tips">Cursor tips: <span id="tips_state">off</span></button>
+            <div class="sep"></div>
             <button type="button" data-cmd="about">About INA-sim…</button>
             <button type="button" data-cmd="help-columns">Column legend…</button>
             <button type="button" data-cmd="glossary">Glossary…</button>
@@ -704,6 +706,7 @@
     let runGen = 0;
     let screenAbort = null;
     let sweepAbort = null;
+    let lastSweepPoints = null;
     let serverOk = true;
     let healthTimer = null;
     let lastFingerprint = null;
@@ -1005,12 +1008,38 @@
       if (!points || !points.length) {
         ctx.fillStyle = "#808080";
         ctx.font = "12px MS Sans Serif, sans-serif";
-        ctx.fillText("No sweep data yet — press T sweep.", padL, H / 2);
+        ctx.fillText("No sweep data yet — Physics ▸ Temperature sweep.", padL, H / 2);
         return;
       }
       const colors = ["#000080", "#008000", "#800000", "#808000", "#800080", "#008080", "#404040"];
       const ids = points[0].rankings.map((r) => r.id);
-      // Fixed Y scale 0–1 to match score definition
+      const q = sweepQuantity();
+      const rawOf = (r) => {
+        const v = r[q.key];
+        return typeof v === "number" && isFinite(v) ? v : null;
+      };
+      /* Unit quantities keep the fixed 0–1 axis they have always had. INP per
+         litre spans decades, so it gets a log axis sized to the data; a linear
+         axis there would render every curve but the top one as zero. */
+      let logMin = 0, logMax = 1;
+      if (q.scale === "log") {
+        const positives = [];
+        points.forEach((pt) => pt.rankings.forEach((r) => {
+          const v = rawOf(r);
+          if (v && v > 0) positives.push(Math.log10(v));
+        }));
+        if (positives.length) {
+          logMax = Math.ceil(Math.max(...positives));
+          logMin = Math.min(logMax - 1, Math.floor(Math.min(...positives)));
+        }
+      }
+      const norm = (r) => {
+        const v = rawOf(r);
+        if (v === null) return null;
+        if (q.scale !== "log") return v;
+        if (v <= 0) return 0;
+        return (Math.log10(v) - logMin) / (logMax - logMin || 1);
+      };
       const yMax = 1.0;
       const t0 = points[0].T_c, t1 = points[points.length - 1].T_c;
       const xOf = (t) => padL + ((t - t0) / (t1 - t0 || 1)) * (W - padL - padR);
@@ -1026,7 +1055,10 @@
         ctx.font = "10px Consolas, monospace";
         ctx.textAlign = "right";
         ctx.textBaseline = "middle";
-        ctx.fillText(val.toFixed(1), padL - 6, y);
+        const tickLabel = q.scale === "log"
+          ? "1e" + Math.round(logMin + val * (logMax - logMin))
+          : val.toFixed(1);
+        ctx.fillText(tickLabel, padL - 6, y);
       }
 
       // X ticks every ~5 °C
@@ -1063,7 +1095,7 @@
       ctx.font = "11px MS Sans Serif, sans-serif";
       ctx.textAlign = "left";
       ctx.textBaseline = "top";
-      ctx.fillText("score (AgI peak = 1)", padL, 4);
+      ctx.fillText(q.top, padL, 4);
       ctx.textAlign = "center";
       ctx.textBaseline = "bottom";
       ctx.fillText("Temperature (°C)", padL + (W - padL - padR) / 2, H - 2);
@@ -1072,18 +1104,20 @@
       ctx.rotate(-Math.PI / 2);
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
-      ctx.fillText("relative score", 0, 0);
+      ctx.fillText(q.axis, 0, 0);
       ctx.restore();
 
       ids.forEach((id, i) => {
         ctx.strokeStyle = colors[i % colors.length];
         ctx.lineWidth = 2;
         ctx.beginPath();
-        points.forEach((p, j) => {
+        let started = false;
+        points.forEach((p) => {
           const row = p.rankings.find((r) => r.id === id);
-          const v = row ? Math.max(0, Math.min(1, row.relative_ina)) : 0;
-          const x = xOf(p.T_c), y = yOf(v);
-          if (j === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+          const v = row ? norm(row) : null;
+          if (v === null) return;           // no value: break the line, do not draw zero
+          const x = xOf(p.T_c), y = yOf(Math.max(0, Math.min(1, v)));
+          if (!started) { ctx.moveTo(x, y); started = true; } else { ctx.lineTo(x, y); }
         });
         ctx.stroke();
       });
@@ -1100,7 +1134,12 @@
         ctx.fillText(id, lx + 13, 15);
       });
       $("sweep_cap").textContent =
-        `T sweep: ${points.length} temps · ${ids.length} agents · Y fixed 0–1 (AgI peak = 1)`;
+        `T sweep: ${points.length} temps · ${ids.length} agents · ${q.label}` +
+        (q.scale === "log"
+          ? ` · Y 1e${logMin}–1e${logMax}, responds to size and dose`
+          : q.key === "activation_probability"
+            ? " · Y 0–1, responds to particle size"
+            : " · Y fixed 0–1 (AgI peak = 1)");
     }
 
     function renderAtm(a) {
@@ -1278,6 +1317,55 @@
       }
     }
 
+    /* Sweep quantities. "score" is the historical curve, which depends only on
+       temperature. The other two run through the activation layer, so they
+       respond to the particle-size and seeding-density inputs — which is what
+       makes a sweep worth looking at more than once. */
+    const SWEEP_QUANTITIES = [
+      { key: "relative_ina", label: "relative score", axis: "relative score",
+        top: "score (AgI peak = 1)", scale: "unit" },
+      { key: "activation_probability", label: "activation probability",
+        axis: "P(activate)", top: "one particle, P = 1 − exp(−n_s·πd²)", scale: "unit" },
+      { key: "n_inp_per_litre", label: "INP per litre",
+        axis: "log₁₀ INP/L", top: "delivered INP per litre (log scale)", scale: "log" },
+    ];
+    let sweepQuantityIndex = 0;
+    const sweepQuantity = () => SWEEP_QUANTITIES[sweepQuantityIndex];
+
+    function cycleSweepQuantity() {
+      sweepQuantityIndex = (sweepQuantityIndex + 1) % SWEEP_QUANTITIES.length;
+      const q = sweepQuantity();
+      $("sweep_quantity_label").textContent = q.label;
+      if (lastSweepPoints) drawSweep(lastSweepPoints);
+      setStatus(
+        q.key === "relative_ina"
+          ? "Sweep shows the relative score — temperature only."
+          : "Sweep shows " + q.label + " — responds to particle size" +
+            (q.scale === "log" ? " and seeding density." : "."),
+        false
+      );
+    }
+
+    async function openReferenceFigures() {
+      /* Older servers predate /reference; opening a blind tab shows a raw 404,
+         which reads as a bug in the page rather than a stale process. */
+      try {
+        const probe = await fetch("/reference", { method: "GET" });
+        if (!probe.ok) throw new Error("HTTP " + probe.status);
+        window.open("/reference", "_blank", "noopener");
+        setStatus("Reference figures opened in a new tab", false);
+      } catch (e) {
+        showModal("Reference figures unavailable", `
+          <p>This server does not serve <code>/reference</code>.</p>
+          <p>It is almost certainly running a build from before the figures
+          existed. Stop it and start it again:</p>
+          <p><code>ina-sim gui</code></p>
+          <p>Or generate the page as a file instead:</p>
+          <p><code>ina-sim figures --out reference-figures.html</code></p>`);
+        setStatus("Reference figures need a server restart", true);
+      }
+    }
+
     async function runSweep() {
       if (sweepAbort) sweepAbort.abort();
       sweepAbort = new AbortController();
@@ -1287,7 +1375,8 @@
         const p = params();
         p.set("t_min", "-30"); p.set("t_max", "0"); p.set("step", "2");
         const data = await apiGet("/api/tsweep?" + p.toString(), sweepAbort.signal);
-        drawSweep(data.points || []);
+        lastSweepPoints = data.points || [];
+        drawSweep(lastSweepPoints);
         setStatus(`Sweep done · ${data.n_temps} temps · ${data.n_agents} agents`, false);
       } catch (e) {
         if (isAbort(e)) return;
@@ -1441,13 +1530,11 @@
         case "run": runScreen(); break;
         case "sweep": runSweep(); break;
         case "upload-dialog": showUploadDialog(); break;
+        case "cycle-sweep-quantity": cycleSweepQuantity(); break;
         // Static reference figures: what the literature says, independent of
         // the current slider state. Opens in its own tab so the screen keeps
         // whatever run is on it.
-        case "reference-figures":
-          window.open("/reference", "_blank", "noopener");
-          setStatus("Reference figures opened in a new tab", false);
-          break;
+        case "reference-figures": openReferenceFigures(); break;
         case "about-physics":
           showModal("Model notes", `
             <p><b>L0 + L1 activity tables + educational CNT</b></p>
@@ -1494,7 +1581,7 @@
             <p><b>CNT</b> — educational classical nucleation score (secondary)</p>
             <p><b>Conf</b> — high / medium / low / exploratory</p>
             <p><b>source</b> — provenance of the activity curve</p>
-            <p>Turn on <b>View → Cursor tips</b> for hover definitions.</p>`);
+            <p>Turn on <b>Help → Cursor tips</b> for hover definitions.</p>`);
           break;
       }
     }
