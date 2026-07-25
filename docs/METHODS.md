@@ -326,7 +326,43 @@ alongside Harrison et al. 2019 for K-feldspar, or Ullrich et al. 2017 alongside
 Niemand et al. 2012 for dust) is the obvious next step, and it will light this
 view up without any code change.
 
-## 8. Rules the code enforces
+## 8. Coverage: which view sees what
+
+```bash
+ina-sim rank --temp -20        # every measured material, heuristic layer off
+```
+
+Two screening views, with different coverage, and the difference is the point:
+
+| view | covers | ordering | needs a library entry |
+|---|---|---|---|
+| `ina-sim screen` | the 8 library candidates | relative score 0–1 vs AgI | yes |
+| `ina-sim rank` | every material with a fit (8 parameterizations) | log₁₀ of the measured quantity | no |
+
+Four materials — quartz, plagioclase, albite and desert dust — have published
+fits but **no library candidate**, and they are deliberately not forced into the
+heuristic screen. Doing so would require inventing a peak strength and an
+activity curve for each, and the arithmetic shows why that fails: normalising a
+quantity spanning ten decades onto a linear 0–1 axis puts quartz at 0.0012 and
+plagioclase at 0.00002, i.e. visually inert, for minerals that demonstrably
+nucleate ice. `ina-sim rank` reports them in log₁₀, which is how the field reads
+ns, and needs no invented fields at all.
+
+The remaining honest gaps, in order of what would help most:
+
+1. **No two fits describe the same material**, so `ina-sim compare` cannot yet
+   test whether the literature disagrees (see §7). Atkinson et al. (2013) for
+   K-feldspar or Ullrich et al. (2017) for dust would fix this; neither is open
+   access and neither is transcribed here, because a coefficient that cannot be
+   verified does not ship.
+2. **Desert dust has no honest place on the relative scale.** Its only
+   same-basis anchor is the AgI fit derived here, whose σ is 1.8 decades — too
+   uncertain to anchor anything. It stays registry-only until a better AgI
+   parameterization exists.
+3. **Kaolinite is a rate coefficient valid only over 236–245 K**, so it returns
+   nothing at mixed-phase temperatures where it is most often used.
+
+## 9. Rules the code enforces
 
 **No silent extrapolation.** Outside the temperature range its source fitted, a
 parameterization returns nothing. `--extrapolate` overrides this and stamps the
@@ -351,7 +387,7 @@ is `none`, and it says so in the CLI output.
 
 ---
 
-## 9. What this still is not
+## 10. What this still is not
 
 - Not a calibration to any specific field campaign or seeding operation.
 - Not a source of operational rates, dosages or precipitation forecasts.
@@ -362,7 +398,7 @@ is `none`, and it says so in the CLI output.
   the literature disagrees. The gaps are visible on purpose
   (`ina-sim ns --list`, `ina-sim compare`).
 
-## 10. References
+## 11. References
 
 `ina-sim refs` prints the bibliography with DOIs and how each source was used.
 See also [REFERENCES.md](REFERENCES.md).

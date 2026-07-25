@@ -264,3 +264,94 @@ def summarise(groups: list[ComparisonGroup]) -> dict[str, Any]:
             "the disagreement question answerable."
         ),
     }
+
+
+@dataclass(frozen=True)
+class RankedMaterial:
+    """One measured material at one temperature, ranked by what it does."""
+
+    parameterization_id: str
+    material: str
+    material_key: str
+    log10_value: float
+    value: float
+    units: str
+    sigma_log10: float
+    sigma_assumed: bool
+    status: str
+    citation: str
+    decades_below_top: float
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "parameterization": self.parameterization_id,
+            "material": self.material,
+            "material_key": self.material_key,
+            "value": self.value,
+            "log10_value": round(self.log10_value, 3),
+            "units": self.units,
+            "sigma_log10": self.sigma_log10,
+            "sigma_assumed": self.sigma_assumed,
+            "status": self.status,
+            "citation": self.citation,
+            "decades_below_top": round(self.decades_below_top, 3),
+        }
+
+
+def empirical_ranking(
+    temperature_c: float,
+    *,
+    area_basis: str | None = None,
+    parameterizations: dict[str, Parameterization] | None = None,
+) -> dict[tuple[str, str], list[RankedMaterial]]:
+    """Rank every measured material at one temperature, per comparable group.
+
+    This is the screening view with the heuristic layer removed entirely: no
+    relative-to-AgI convention, no shaped activity curves, no library entry
+    required. A material appears only if a parameterization covers it at this
+    temperature, and materials are ordered by the quantity itself.
+
+    Ranking is reported in log10 because that is how the field reads ns: the
+    materials here span ten orders of magnitude, and on a linear 0-1 axis
+    everything except the most active one rounds to zero, which reads as
+    "inert" for substances that demonstrably nucleate ice.
+    """
+    registry = parameterizations or load_parameterizations()
+    grouped: dict[tuple[str, str], list[RankedMaterial]] = {}
+
+    for param in registry.values():
+        if area_basis is not None and param.area_basis != area_basis:
+            continue
+        est = evaluate(param, temperature_c)
+        if est.value is None or est.log10_value is None or est.sigma_log10 is None:
+            continue
+        grouped.setdefault(comparison_key(param), []).append(
+            RankedMaterial(
+                parameterization_id=param.id,
+                material=param.material,
+                material_key=param.material_key,
+                log10_value=est.log10_value,
+                value=est.value,
+                units=est.units,
+                sigma_log10=est.sigma_log10,
+                sigma_assumed=est.sigma_assumed,
+                status=param.status,
+                citation=est.citation,
+                decades_below_top=0.0,
+            )
+        )
+
+    out: dict[tuple[str, str], list[RankedMaterial]] = {}
+    for key, entries in grouped.items():
+        entries.sort(key=lambda e: -e.log10_value)
+        top = entries[0].log10_value
+        out[key] = [
+            RankedMaterial(
+                **{
+                    **e.__dict__,
+                    "decades_below_top": top - e.log10_value,
+                }
+            )
+            for e in entries
+        ]
+    return out

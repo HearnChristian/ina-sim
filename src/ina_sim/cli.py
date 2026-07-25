@@ -247,6 +247,24 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     cmp_p.add_argument("--json", action="store_true", help="JSON output")
 
+    rank_p = sub.add_parser(
+        "rank",
+        help="Rank materials by measured ns(T), with no heuristic layer",
+        description=(
+            "The screening view with the heuristic score removed: no "
+            "relative-to-AgI convention, no shaped activity curves, no library "
+            "entry required. Every material with a parameterization covering "
+            "this temperature appears, ordered by the measured quantity, "
+            "grouped by what may legitimately be compared."
+        ),
+    )
+    rank_p.add_argument("--temp", type=float, default=-20.0, help="Temperature °C")
+    rank_p.add_argument(
+        "--basis", choices=["BET", "geometric", "volume"], default=None,
+        help="Restrict to one surface-area basis",
+    )
+    rank_p.add_argument("--json", action="store_true", help="JSON output")
+
     val = sub.add_parser(
         "validate",
         help="Check this build against published claims",
@@ -1004,6 +1022,66 @@ def _cmd_compare(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_rank(args: argparse.Namespace) -> int:
+    from ina_sim.physics.intercompare import empirical_ranking
+
+    groups = empirical_ranking(args.temp, area_basis=args.basis)
+
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "T_c": args.temp,
+                    "groups": [
+                        {
+                            "quantity": quantity,
+                            "area_basis": basis,
+                            "materials": [r.as_dict() for r in rows],
+                        }
+                        for (quantity, basis), rows in groups.items()
+                    ],
+                },
+                indent=2,
+            )
+        )
+        return 0
+
+    if not groups:
+        print(
+            f"No parameterization covers {args.temp:g} °C"
+            + (f" on a {args.basis} basis." if args.basis else ".")
+        )
+        return 0
+
+    print(f"Measured materials at T = {args.temp:g} °C (heuristic layer off)")
+    for (quantity, basis), rows in groups.items():
+        print()
+        print(f"{quantity} on a {basis} basis  [{rows[0].units}]")
+        print(
+            f"{'':>2}  {'material':<14} {'log10':>7} {'±σ':>6} {'vs top':>8}  "
+            f"{'status':<10} source"
+        )
+        print("-" * 92)
+        for i, r in enumerate(rows, 1):
+            sigma = f"{r.sigma_log10:.2g}" + ("*" if r.sigma_assumed else "")
+            print(
+                f"{i:>2}  {r.material_key:<14} {r.log10_value:>7.2f} {sigma:>6} "
+                f"{-r.decades_below_top:>8.2f}  {r.status:<10} {r.citation}"
+            )
+    print()
+    print(
+        "Ranked in log10 because these span ten orders of magnitude; on a "
+        "linear 0–1 axis everything but the top entry rounds to zero, which "
+        "reads as inert for materials that demonstrably nucleate ice."
+    )
+    print(
+        "Groups are never merged: a BET ns, a geometric ns and a rate "
+        "coefficient are different quantities.  * = σ assumed, not stated by "
+        "the source."
+    )
+    return 0
+
+
 def _cmd_validate(args: argparse.Namespace) -> int:
     from ina_sim.validation.runner import format_report, run_validation
 
@@ -1073,6 +1151,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_aerosol(args)
     if args.cmd == "compare":
         return _cmd_compare(args)
+    if args.cmd == "rank":
+        return _cmd_rank(args)
     if args.cmd == "freeze":
         return _cmd_freeze(args)
     if args.cmd == "validate":

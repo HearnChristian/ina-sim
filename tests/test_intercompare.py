@@ -215,3 +215,97 @@ def test_cli_compare_rejects_a_bad_range():
     proc = _cli("compare", "--range=nonsense")
     assert proc.returncode == 1
     assert "lo:hi:step" in proc.stderr
+
+
+# --- Empirical-only ranking ------------------------------------------------
+
+
+def test_ranking_covers_every_measured_material_not_just_library_ones():
+    """The gap this closes: quartz, plagioclase, albite and desert dust have
+    published fits but no library candidate, so the heuristic screen never sees
+    them. The empirical ranking does."""
+    from ina_sim.physics.intercompare import empirical_ranking
+
+    ranked = {
+        r.material_key
+        for rows in empirical_ranking(-20.0).values()
+        for r in rows
+    }
+    assert {"quartz", "plagioclase", "albite", "desert_dust"} <= ranked
+    assert "k_feldspar" in ranked
+
+
+def test_ranking_is_sorted_and_grouped_by_comparability():
+    from ina_sim.physics.intercompare import empirical_ranking
+
+    for (quantity, basis), rows in empirical_ranking(-20.0).items():
+        assert [r.log10_value for r in rows] == sorted(
+            (r.log10_value for r in rows), reverse=True
+        )
+        assert all(r.units == rows[0].units for r in rows)
+        assert rows[0].decades_below_top == 0.0
+        assert all(r.decades_below_top >= 0 for r in rows)
+
+
+def test_ranking_reproduces_the_published_mineral_order():
+    """Harrison et al. (2019): K-feldspar most active, plagioclase least."""
+    from ina_sim.physics.intercompare import empirical_ranking
+
+    bet = empirical_ranking(-20.0, area_basis="BET")[("ns", "BET")]
+    assert [r.material_key for r in bet] == [
+        "k_feldspar",
+        "albite",
+        "quartz",
+        "plagioclase",
+    ]
+
+
+def test_ranking_never_mixes_bases():
+    from ina_sim.physics.intercompare import empirical_ranking
+
+    groups = empirical_ranking(-20.0)
+    keys = {(q, b) for q, b in groups}
+    assert ("ns", "BET") in keys and ("ns", "geometric") in keys
+    bet_materials = {r.material_key for r in groups[("ns", "BET")]}
+    assert "desert_dust" not in bet_materials
+    assert "agi" not in bet_materials
+
+
+def test_ranking_excludes_materials_outside_their_fitted_range():
+    from ina_sim.physics.intercompare import empirical_ranking
+
+    warm = empirical_ranking(-5.0)
+    materials = {r.material_key for rows in warm.values() for r in rows}
+    assert "quartz" not in materials  # quartz fit starts at -10.5 C
+    assert "k_feldspar" in materials  # valid from -3.5 C
+
+
+def test_ranking_marks_assumed_uncertainty_and_derived_status():
+    from ina_sim.physics.intercompare import empirical_ranking
+
+    geometric = empirical_ranking(-20.0, area_basis="geometric")[("ns", "geometric")]
+    by_key = {r.material_key: r for r in geometric}
+    assert by_key["desert_dust"].sigma_assumed is True
+    assert by_key["agi"].status == "derived"
+
+
+def test_cli_rank_runs():
+    proc = _cli("rank", "--temp", "-20")
+    assert proc.returncode == 0, proc.stderr
+    assert "k_feldspar" in proc.stdout
+    assert "quartz" in proc.stdout
+    assert "heuristic layer off" in proc.stdout
+
+
+def test_cli_rank_json_groups():
+    proc = _cli("rank", "--temp", "-20", "--json")
+    assert proc.returncode == 0, proc.stderr
+    payload = json.loads(proc.stdout)
+    bases = {g["area_basis"] for g in payload["groups"]}
+    assert {"BET", "geometric"} <= bases
+
+
+def test_cli_rank_reports_nothing_measured_plainly():
+    proc = _cli("rank", "--temp", "-1")
+    assert proc.returncode == 0
+    assert "No parameterization covers" in proc.stdout

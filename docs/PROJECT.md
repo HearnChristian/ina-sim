@@ -243,6 +243,7 @@ Key anchors (see also literature doc):
 
 | Date | Note |
 |------|------|
+| 2026-07-25 | **v0.3.3** `ina-sim rank`: empirical-only screening in log10, covering all 8 parameterizations rather than the 4 with library entries. Documented why quartz/plagioclase/albite/dust are NOT forced into the heuristic score (a 10-decade quantity on a linear 0–1 axis makes real minerals look inert) and what the three remaining gaps actually are |
 | 2026-07-25 | **v0.3.2** `ina-sim aerosol`: lognormal size distributions → INP concentration via the exact activation integral (not ns × S_tot), d50 of the particles carrying the nucleation, instrument-range truncation. `ina-sim compare`: fits grouped by quantity + area basis, with 'range across materials' separated from genuine same-material conflict (material_key added to every parameterization; this build has zero same-material pairs and says so) |
 | 2026-07-25 | **v0.3.1** `ina-sim assay`: import a real droplet-freezing run (CSV/JSON, 3 surface-area routes) → ns(T) with Wilson counting bands, one-sided limits at f=0/1, dynamic-range flags, and scored comparison against every fit on the same area basis; synthetic example + round-trip test |
 | 2026-07-25 | **v0.3.0** Empirical layer: published ns(T)/J(T) registry with DOIs, units and validity guards; Vali inversion + T50 + INP concentration; stochastic (Murray 2011) freezing; derived AgI fit from Marcolli 2016 Table 1 (sigma 1.8 decades, honestly reported); validation anchors in CI; KI reclassified as a soluble salt; 248 tests; mypy clean |

@@ -27,6 +27,7 @@ ina-sim ns --temp -20              # ns(T) / J(T) from the literature
 ina-sim assay my_run.csv           # YOUR droplet-freezing data -> ns(T) + comparison
 ina-sim aerosol --id desert_dust_niemand2012 --mode 1:0.8:1.9 --temp -20
 ina-sim compare --range=-35:-10:5  # how far apart are the published fits?
+ina-sim rank --temp -20            # every measured material, heuristic layer off
 ina-sim freeze --id k_feldspar_harrison2019 --diameter 1 --curve
 ina-sim validate                   # does this build still reproduce its sources?
 ina-sim refs                       # the bibliography behind every number
@@ -63,7 +64,7 @@ See [`docs/METHODS.md` §5](docs/METHODS.md) for the file format and
 - Not cloud-resolving, not radar verification
 - Not operational seeding guidance, dosages or precipitation forecasts
 - Not a substitute for a droplet-freezing assay — it predicts what one would measure
-- Not complete: 8 parameterizations covering 4 of the library's candidates, and no two describe the same material — so it cannot yet tell you where the literature disagrees. The gaps are visible on purpose
+- Not complete: 8 parameterizations. `ina-sim rank` covers all of them; the heuristic `screen` covers the 8 library candidates, 4 of which have fits. No two fits describe the same material yet, so it cannot tell you where the literature disagrees. The gaps are visible on purpose
 
 ## Status (v0.3)
 
@@ -73,6 +74,7 @@ See [`docs/METHODS.md` §5](docs/METHODS.md) for the file format and
 | **Assay import** | your CSV/JSON run → ns(T) with Wilson bands, dynamic-range flags, comparison to published fits |
 | **Polydisperse aerosol** | lognormal modes → INP concentration by exact integral (not ns × area), d50 of the particles carrying the ice nucleation, size truncation |
 | **Intercomparison** | fits grouped by quantity + area basis; range across materials separated from genuine same-material conflict |
+| **Empirical ranking** | `ina-sim rank` — every measured material ordered in log₁₀, no heuristic layer, no library entry needed |
 | **Droplet-freezing observables** | frozen fraction, Vali inversion, T50, INP concentration, cooling-ramp integration |
 | **Singular + stochastic descriptions** | Vali (1971) and Murray et al. (2011), reported side by side |
 | **Validation suite** | 5 anchors against published claims, run in CI (`ina-sim validate`) |
@@ -137,7 +139,7 @@ examples/        kfeldspar_synthetic_assay.csv (labelled synthetic template)
 tools/           fit_agi_ns.py (derives the AgI fit), gen_docs.py,
                  make_example_assay.py
 docs/            METHODS.md, VALIDATION.md, REFERENCES.md, PROJECT.md
-tests/           336 tests: units, registry, freezing physics, assay import,
+tests/           345 tests: units, registry, freezing physics, assay import,
                  aerosol, intercomparison, validation, references
 ```
 

@@ -2,7 +2,7 @@
 
 # Validation
 
-Generated from INA-sim 0.3.2. Reproduce with `ina-sim validate`.
+Generated from INA-sim 0.3.3. Reproduce with `ina-sim validate`.
 
 An anchor is only worth having if it is independent of the numbers it tests. Checking a polynomial against itself proves nothing, so each anchor below is a claim made in the source's prose, an ordering the source asserts, a textbook regime the model must land in, or a calibration check that published measurements really do fall inside the uncertainty band this tool advertises.
 

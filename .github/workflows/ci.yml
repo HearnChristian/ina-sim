@@ -53,3 +53,5 @@ jobs:
         run: ina-sim ns --list
       - name: Intercomparison of the published fits
         run: ina-sim compare --range=-35:-10:5
+      - name: Empirical ranking covers every parameterization
+        run: ina-sim rank --temp -20
